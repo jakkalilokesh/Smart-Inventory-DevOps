@@ -1,0 +1,117 @@
+# Default values for SmartInventory
+replicaCount: 3
+
+image:
+  repository: ghcr.io/smartinventory/smartinventory
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: smartinventory.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: smartinventory-tls
+      hosts:
+        - smartinventory.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# MySQL Database
+mysql:
+  enabled: true
+  image:
+    repository: mysql
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+  
+  auth:
+    rootPassword: "root"
+    database: "smartinventory"
+    username: "smartinv"
+    password: "smartinv123"
+  
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: "standard"
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# Prometheus Monitoring
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    labels:
+      release: prometheus
+
+# Environment variables
+env:
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
+  DB_NAME: "smartinventory"
+  DB_USER: "smartinv"
+  DB_PASSWORD: "smartinv123"
+
+# ConfigMap and Secret
+configMap:
+  data:
+    app.name: "SmartInventory"
+    app.version: "1.0.0"
+
+secret:
+  data:
+    db.password: "c21hcnRpbnYxMjM="

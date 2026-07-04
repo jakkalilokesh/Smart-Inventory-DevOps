@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: smartinventory-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-smartinventory}
+      MYSQL_USER: ${MYSQL_USER:-smartinv}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smartinv123}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - smartinventory-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # SmartInventory Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartinventory-app
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-smartinventory}
+      - DB_USER=${DB_USER:-smartinv}
+      - DB_PASSWORD=${DB_PASSWORD:-smartinv123}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smartinventory-network
+    volumes:
+      - app-logs:/usr/local/tomcat/logs
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+    driver: local
+  app-logs:
+    driver: local
+
+networks:
+  smartinventory-network:
+    driver: bridge

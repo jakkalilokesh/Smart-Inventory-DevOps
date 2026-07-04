@@ -1,0 +1,82 @@
+{{- if .Values.mysql.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "smartinventory.fullname" . }}-mysql
+  labels:
+    {{- include "smartinventory.labels" . | nindent 4 }}
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "smartinventory.selectorLabels" . | nindent 6 }}
+      tier: database
+  template:
+    metadata:
+      labels:
+        {{- include "smartinventory.selectorLabels" . | nindent 8 }}
+        tier: database
+    spec:
+      containers:
+      - name: mysql
+        image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+        imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+        ports:
+        - containerPort: 3306
+          name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: {{ .Values.mysql.auth.rootPassword | quote }}
+        - name: MYSQL_DATABASE
+          value: {{ .Values.mysql.auth.database | quote }}
+        - name: MYSQL_USER
+          value: {{ .Values.mysql.auth.username | quote }}
+        - name: MYSQL_PASSWORD
+          value: {{ .Values.mysql.auth.password | quote }}
+        resources:
+          {{- toYaml .Values.mysql.resources | nindent 10 }}
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: {{ include "smartinventory.fullname" . }}-mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.env.DB_HOST }}
+  labels:
+    {{- include "smartinventory.labels" . | nindent 4 }}
+    tier: database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+    name: mysql
+  selector:
+    {{- include "smartinventory.selectorLabels" . | nindent 4 }}
+    tier: database
+---
+{{- if .Values.mysql.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "smartinventory.fullname" . }}-mysql-pvc
+  labels:
+    {{- include "smartinventory.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mysql.persistence.size }}
+  {{- if .Values.mysql.persistence.storageClass }}
+  storageClassName: {{ .Values.mysql.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartinventory-service
+  labels:
+    app: smartinventory
+    tier: backend
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: smartinventory
+    tier: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  labels:
+    app: smartinventory
+    tier: database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+    name: mysql
+  selector:
+    app: smartinventory
+    tier: database

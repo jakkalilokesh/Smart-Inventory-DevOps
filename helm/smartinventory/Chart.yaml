@@ -1,0 +1,17 @@
+apiVersion: v2
+name: smartinventory
+description: Helm chart for SmartInventory - Enterprise Inventory Management System
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - inventory
+  - management
+  - java
+  - tomcat
+maintainers:
+  - name: SmartInventory Team
+    email: dev@smartinventory.com
+sources:
+  - https://github.com/smartinventory/smartinventory
+icon: https://smartinventory.com/icon.png

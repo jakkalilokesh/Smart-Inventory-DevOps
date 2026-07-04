@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Log4j2 Configuration for SmartInventory Application
+    
+    This configuration provides:
+    - Console logging with colored output for development
+    - File logging with rolling policy for production
+    - Separate log levels for different packages
+    - Async logging for better performance
+-->
+<Configuration status="WARN" monitorInterval="30">
+    
+    <!-- Properties -->
+    <Properties>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+        <Property name="LOG_DIR">logs</Property>
+        <Property name="LOG_FILE">${LOG_DIR}/smartinventory.log</Property>
+        <Property name="LOG_ARCHIVE">${LOG_DIR}/archive</Property>
+    </Properties>
+    
+    <!-- Appenders -->
+    <Appenders>
+        <!-- Console Appender with colors -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n}"/>
+        </Console>
+        
+        <!-- Rolling File Appender -->
+        <RollingFile name="RollingFile" fileName="${LOG_FILE}" 
+                     filePattern="${LOG_ARCHIVE}/smartinventory-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <!-- Roll over daily -->
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <!-- Roll over when file reaches 10MB -->
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <!-- Keep last 30 days of logs -->
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+        
+        <!-- Error File Appender - only errors and above -->
+        <RollingFile name="ErrorFile" fileName="${LOG_DIR}/error.log" 
+                     filePattern="${LOG_ARCHIVE}/error-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+        </RollingFile>
+        
+        <!-- Async Appenders for better performance -->
+        <Async name="AsyncConsole">
+            <AppenderRef ref="Console"/>
+        </Async>
+        
+        <Async name="AsyncRollingFile">
+            <AppenderRef ref="RollingFile"/>
+        </Async>
+        
+        <Async name="AsyncErrorFile">
+            <AppenderRef ref="ErrorFile"/>
+        </Async>
+    </Appenders>
+    
+    <!-- Loggers -->
+    <Loggers>
+        <!-- Application Loggers -->
+        <Logger name="com.smartinventory" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncRollingFile"/>
+            <AppenderRef ref="AsyncErrorFile"/>
+        </Logger>
+        
+        <!-- DAO Layer - DEBUG level for SQL queries -->
+        <Logger name="com.smartinventory.dao" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Logger>
+        
+        <!-- Service Layer - INFO level -->
+        <Logger name="com.smartinventory.service" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Logger>
+        
+        <!-- Controller Layer - INFO level -->
+        <Logger name="com.smartinventory.controller" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Logger>
+        
+        <!-- Filter Layer - DEBUG level -->
+        <Logger name="com.smartinventory.filter" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Logger>
+        
+        <!-- Third-party libraries -->
+        <Logger name="org.apache.commons.dbcp2" level="WARN" additivity="false">
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Logger>
+        
+        <Logger name="org.springframework" level="WARN" additivity="false">
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Logger>
+        
+        <!-- Root Logger -->
+        <Root level="WARN">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncRollingFile"/>
+        </Root>
+    </Loggers>
+</Configuration>
