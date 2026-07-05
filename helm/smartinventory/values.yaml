@@ -114,4 +114,5 @@ configMap:
 
 secret:
   data:
-    db.password: "c21hcnRpbnYxMjM="
+    db:
+      password: "c21hcnRpbnYxMjM="

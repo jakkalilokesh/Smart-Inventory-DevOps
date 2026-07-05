@@ -215,8 +215,7 @@ resource "random_id" "bucket_suffix" {
 # Helm Release for SmartInventory
 resource "helm_release" "smartinventory" {
   name       = "smartinventory"
-  repository = "./helm/smartinventory"
-  chart      = "smartinventory"
+  chart      = "../helm/smartinventory"
   namespace  = "default"
   
   set {
@@ -236,7 +235,17 @@ resource "helm_release" "smartinventory" {
   
   set {
     name  = "env.DB_HOST"
-    value = aws_db_instance.mysql.endpoint
+    value = aws_db_instance.mysql.address
+  }
+
+  set {
+    name  = "env.DB_USER"
+    value = var.db_username
+  }
+
+  set {
+    name  = "secret.data.db.password"
+    value = base64encode(var.db_password)
   }
   
   depends_on = [module.eks]
