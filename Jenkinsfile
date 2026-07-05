@@ -2,8 +2,8 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_IMAGE = "smartinventory:${BUILD_NUMBER}"
-        DOCKER_REGISTRY = "your-registry.com"
+        DOCKER_IMAGE = "jakkalilokesh/smartinventory:${BUILD_NUMBER}"
+        DOCKER_REGISTRY = "index.docker.io/v1/"
         DOCKER_CONTEXT = "default"
         DB_HOST = "mysql"
         DB_NAME = "smartinventory"
@@ -212,10 +212,13 @@ pipeline {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                     input 'Deploy to production?'
-                    runCmd """
-                        kubectl apply -f k8s/
-                        kubectl rollout status deployment/smartinventory-app
-                    """
+                    withCredentials([
+                        usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        runCmd "aws eks update-kubeconfig --region us-east-2 --name smartinventory-cluster"
+                        runCmd "kubectl apply -f k8s/"
+                        runCmd "kubectl rollout status deployment/smartinventory-app"
+                    }
                     echo 'Deployed to production'
                 }
             }

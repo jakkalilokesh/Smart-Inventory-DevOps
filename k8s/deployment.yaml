@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: smartinventory
-        image: smartinventory:latest
+        image: jakkalilokesh/smartinventory:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
