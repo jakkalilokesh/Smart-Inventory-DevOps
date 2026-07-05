@@ -192,10 +192,15 @@ pipeline {
                         string(credentialsId: 'db-password', variable: 'TF_VAR_db_password')
                     ]) {
                         dir('terraform') {
+                            runCmd 'if exist "c:\\Users\\Jakkali Lokesh\\Desktop\\maven\\terraform\\terraform.tfstate" copy "c:\\Users\\Jakkali Lokesh\\Desktop\\maven\\terraform\\terraform.tfstate" .'
                             runCmd 'terraform init'
                             runCmd 'terraform validate'
                             runCmd 'terraform plan -out=tfplan'
-                            runCmd 'terraform apply -auto-approve tfplan'
+                            try {
+                                runCmd 'terraform apply -auto-approve tfplan'
+                            } finally {
+                                runCmd 'if exist terraform.tfstate copy terraform.tfstate "c:\\Users\\Jakkali Lokesh\\Desktop\\maven\\terraform\\terraform.tfstate"'
+                            }
                         }
                     }
                 }

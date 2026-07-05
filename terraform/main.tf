@@ -222,6 +222,11 @@ resource "helm_release" "smartinventory" {
     name  = "replicaCount"
     value = "3"
   }
+
+  set {
+    name  = "prometheus.enabled"
+    value = "false"
+  }
   
   set {
     name  = "image.tag"
