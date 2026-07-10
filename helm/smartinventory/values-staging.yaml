@@ -1,0 +1,70 @@
+# =============================================================================
+# Helm Values Override - Staging Environment
+# =============================================================================
+replicaCount: 2
+
+image:
+  repository: harbor.smartinventory.com/smartinventory/smartinventory
+  pullPolicy: Always
+  tag: ""
+
+imagePullSecrets:
+  - name: harbor-registry-secret
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  hosts:
+    - host: staging.smartinventory.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: smartinventory-staging-tls
+      hosts:
+        - staging.smartinventory.example.com
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 768Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+
+mysql:
+  enabled: true
+  auth:
+    rootPassword: "${MYSQL_ROOT_PASSWORD}"
+    database: "smartinventory"
+    username: "smartinv"
+    password: "${MYSQL_PASSWORD}"
+
+prometheus:
+  enabled: true

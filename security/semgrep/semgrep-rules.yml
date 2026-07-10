@@ -1,0 +1,301 @@
+# =============================================================================
+# Semgrep SAST Rules - Enterprise Static Application Security Testing
+# =============================================================================
+# Purpose: Detect security vulnerabilities, code quality issues, and
+#          dangerous patterns in Java source code via static analysis.
+# Integration: Runs after Gitleaks in the Jenkins pipeline. Analyzes all
+#              Java source files for OWASP Top 10 vulnerabilities.
+# Fail Criteria: Any CRITICAL or HIGH severity finding fails the build.
+# =============================================================================
+
+rules:
+  # ===========================================================================
+  # SQL Injection Prevention (OWASP A03:2021 - Injection)
+  # ===========================================================================
+  - id: sql-injection-string-concat
+    patterns:
+      - pattern: |
+          String $QUERY = "..." + $INPUT + "...";
+          ...
+          $STMT.executeQuery($QUERY);
+      - metavariable-regex:
+          metavariable: $QUERY
+          regex: ".*(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER).*"
+    message: >
+      SQL Injection vulnerability detected. User input is concatenated directly
+      into a SQL query string. Use PreparedStatement with parameterized queries
+      instead of string concatenation.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-89: SQL Injection"
+      owasp:
+        - A03:2021 - Injection
+      confidence: HIGH
+      impact: CRITICAL
+      technology:
+        - java
+      references:
+        - https://owasp.org/Top10/A03_2021-Injection/
+        - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+
+  - id: sql-injection-statement-execute
+    patterns:
+      - pattern: |
+          $STMT = $CONN.createStatement();
+          ...
+          $STMT.execute($QUERY);
+      - metavariable-regex:
+          metavariable: $QUERY
+          regex: ".*\\$.*"
+    message: >
+      Potential SQL Injection via Statement.execute() with dynamic query.
+      Use PreparedStatement with parameterized queries for all database
+      operations involving user-supplied data.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-89: SQL Injection"
+      owasp:
+        - A03:2021 - Injection
+      confidence: MEDIUM
+      impact: CRITICAL
+
+  # ===========================================================================
+  # Cross-Site Scripting Prevention (OWASP A07:2021 - XSS)
+  # ===========================================================================
+  - id: xss-response-writer
+    pattern: |
+      $RESPONSE.getWriter().print($INPUT);
+    message: >
+      Potential Cross-Site Scripting (XSS) vulnerability. User input is written
+      directly to the HTTP response without encoding. Use OWASP Java Encoder
+      or sanitize output before writing to response.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-79: Cross-site Scripting"
+      owasp:
+        - A07:2021 - Cross-Site Scripting (XSS)
+      confidence: MEDIUM
+      impact: HIGH
+
+  - id: xss-jsp-expression
+    pattern: |
+      <%= $EXPR %>
+    message: >
+      Potential XSS in JSP expression. Use JSTL c:out tag or fn:escapeXml()
+      to properly encode output in JSP pages.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-79: Cross-site Scripting"
+      owasp:
+        - A07:2021 - Cross-Site Scripting (XSS)
+
+  # ===========================================================================
+  # Authentication & Session Management (OWASP A07:2021)
+  # ===========================================================================
+  - id: hardcoded-password
+    patterns:
+      - pattern: |
+          String $VAR = "...";
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: ".*(password|passwd|pwd|secret|token|apikey|api_key).*"
+    message: >
+      Hardcoded credential detected. Never hardcode passwords, secrets, or
+      API keys in source code. Use environment variables, a secrets manager,
+      or externalized configuration.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-798: Use of Hardcoded Credentials"
+      owasp:
+        - A07:2021 - Identification and Authentication Failures
+      confidence: MEDIUM
+      impact: HIGH
+
+  - id: weak-password-hashing
+    patterns:
+      - pattern-either:
+          - pattern: MessageDigest.getInstance("MD5")
+          - pattern: MessageDigest.getInstance("SHA-1")
+          - pattern: MessageDigest.getInstance("SHA1")
+    message: >
+      Weak hashing algorithm used for password storage. MD5 and SHA-1 are
+      cryptographically broken. Use BCrypt, Argon2, or PBKDF2 with a
+      minimum of 10,000 iterations for password hashing.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-327: Use of Broken Cryptographic Algorithm"
+      owasp:
+        - A02:2021 - Cryptographic Failures
+
+  # ===========================================================================
+  # Insecure Deserialization (OWASP A08:2021)
+  # ===========================================================================
+  - id: insecure-deserialization
+    pattern: |
+      new ObjectInputStream($INPUT).readObject()
+    message: >
+      Insecure deserialization detected. Deserializing untrusted data can
+      lead to Remote Code Execution (RCE). Use allowlisting of expected
+      classes or alternative serialization formats like JSON.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      owasp:
+        - A08:2021 - Software and Data Integrity Failures
+      confidence: HIGH
+      impact: CRITICAL
+
+  # ===========================================================================
+  # Path Traversal (OWASP A01:2021 - Broken Access Control)
+  # ===========================================================================
+  - id: path-traversal
+    patterns:
+      - pattern-either:
+          - pattern: new File($REQUEST.getParameter(...))
+          - pattern: new File("..." + $REQUEST.getParameter(...))
+          - pattern: |
+              String $PATH = $REQUEST.getParameter(...);
+              ...
+              new File($PATH);
+    message: >
+      Path Traversal vulnerability. User input is used directly to construct
+      file paths. Validate and sanitize file paths, use canonical path
+      comparison, and restrict access to allowed directories.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-22: Path Traversal"
+      owasp:
+        - A01:2021 - Broken Access Control
+      confidence: HIGH
+      impact: HIGH
+
+  # ===========================================================================
+  # SSRF Prevention (OWASP A10:2021)
+  # ===========================================================================
+  - id: ssrf-url-connection
+    patterns:
+      - pattern: |
+          URL $URL = new URL($INPUT);
+          ...
+          $URL.openConnection();
+    message: >
+      Potential Server-Side Request Forgery (SSRF). User-controlled input is
+      used to create URL connections. Validate URLs against an allowlist of
+      permitted domains and protocols.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-918: Server-Side Request Forgery"
+      owasp:
+        - A10:2021 - Server-Side Request Forgery (SSRF)
+
+  # ===========================================================================
+  # Logging & Error Handling Security
+  # ===========================================================================
+  - id: sensitive-data-logging
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.info("..." + $PASSWORD + "...")
+          - pattern: $LOG.debug("..." + $PASSWORD + "...")
+          - pattern: $LOG.error("..." + $PASSWORD + "...")
+      - metavariable-regex:
+          metavariable: $PASSWORD
+          regex: ".*(password|secret|token|ssn|credit.?card).*"
+    message: >
+      Sensitive data may be written to logs. Never log passwords, tokens,
+      SSNs, or credit card numbers. Mask or redact sensitive fields before
+      logging.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-532: Information Exposure Through Log Files"
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: exception-information-disclosure
+    pattern: |
+      $EXCEPTION.printStackTrace();
+    message: >
+      Stack traces should not be exposed in production. Use proper logging
+      frameworks (Log4j2, SLF4J) and ensure stack traces are logged
+      internally but not returned to end users.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-209: Information Exposure Through Error Messages"
+
+  # ===========================================================================
+  # Cryptography Best Practices
+  # ===========================================================================
+  - id: insecure-random
+    pattern: new java.util.Random()
+    message: >
+      Insecure random number generator. java.util.Random is predictable.
+      Use java.security.SecureRandom for any security-sensitive operations
+      including token generation, nonces, and cryptographic operations.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-330: Use of Insufficiently Random Values"
+
+  - id: insecure-cipher-ecb
+    patterns:
+      - pattern-either:
+          - pattern: Cipher.getInstance("AES/ECB/...")
+          - pattern: Cipher.getInstance("DES")
+          - pattern: Cipher.getInstance("DESede")
+    message: >
+      Insecure cipher mode or algorithm detected. ECB mode leaks patterns
+      in encrypted data. DES is deprecated. Use AES-256-GCM or
+      AES-256-CBC with proper IV management.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe:
+        - "CWE-327: Use of Broken Cryptographic Algorithm"

@@ -1,0 +1,68 @@
+# =============================================================================
+# Kubescape Configuration - Kubernetes Security Posture Management
+# =============================================================================
+# Purpose: Validate Kubernetes manifests against NSA-CISA, MITRE ATT&CK,
+#          and CIS Kubernetes Benchmark security frameworks.
+# Integration: Runs alongside Checkov and kube-score for defense-in-depth
+#              manifest validation before ArgoCD deployment.
+# =============================================================================
+
+# Frameworks to scan against
+frameworks:
+  - NSA           # NSA/CISA Kubernetes Hardening Guidance
+  - MITRE         # MITRE ATT&CK for Containers
+  - CIS           # CIS Kubernetes Benchmark v1.7+
+
+# Scan scope
+scan:
+  # Paths to Kubernetes manifests
+  paths:
+    - "k8s/"
+    - "kubernetes/"
+    - "helm/smartinventory/templates/"
+  # Exclude test manifests
+  excludedPaths:
+    - "**/tests/**"
+    - "**/test-*"
+
+# Severity threshold - fail on HIGH and CRITICAL
+severityThreshold: "high"
+
+# Output configuration
+output:
+  format: "json"
+  file: "kubescape-report.json"
+
+# Controls to enforce
+controls:
+  # Network security
+  - C-0044  # Network policies defined
+  - C-0002  # No privileged containers
+  - C-0013  # No host network
+  - C-0038  # No host PID
+  # Access control
+  - C-0035  # Cluster admin binding
+  - C-0036  # No RBAC wildcards
+  - C-0041  # No exec to pods
+  # Workload hardening
+  - C-0004  # Resource limits set
+  - C-0009  # Readiness probe defined
+  - C-0018  # Liveness probe defined
+  - C-0016  # No root containers
+  - C-0017  # Immutable filesystem
+  - C-0034  # Automount SA token disabled
+  - C-0046  # Insecure capabilities
+  - C-0055  # Linux hardening
+  - C-0057  # Privileged containers
+  # Supply chain
+  - C-0078  # Image from allowed registry
+
+# Exceptions for known-good configurations
+exceptions:
+  - name: "mysql-stateful-volume"
+    reason: "MySQL requires writable filesystem for data storage"
+    controls:
+      - C-0017
+    resources:
+      - kind: "Deployment"
+        name: "mysql"

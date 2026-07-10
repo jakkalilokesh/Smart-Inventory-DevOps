@@ -1,0 +1,193 @@
+# =============================================================================
+# ArgoCD Application - GitOps Deployment for SmartInventory
+# =============================================================================
+# Purpose: Defines the ArgoCD Application resource that watches the Git
+#          repository and automatically syncs Helm chart changes to EKS.
+# Integration: Jenkins pushes signed images to Harbor, updates Helm values,
+#              and ArgoCD detects the change and deploys to the cluster.
+# Flow: Jenkins → Git commit (values update) → ArgoCD sync → EKS deploy
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: smartinventory
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+spec:
+  description: "SmartInventory Enterprise Application Project"
+  # Source repositories allowed for this project
+  sourceRepos:
+    - "https://github.com/jakkalilokesh/Smart-Inventory-DevOps.git"
+  # Destination clusters and namespaces
+  destinations:
+    - server: "https://kubernetes.default.svc"
+      namespace: "smartinventory-dev"
+    - server: "https://kubernetes.default.svc"
+      namespace: "smartinventory-qa"
+    - server: "https://kubernetes.default.svc"
+      namespace: "smartinventory-staging"
+    - server: "https://kubernetes.default.svc"
+      namespace: "smartinventory-prod"
+  # Allowed cluster-scoped resources
+  clusterResourceWhitelist:
+    - group: ""
+      kind: "Namespace"
+  # Allowed namespace-scoped resources
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: "*"
+    - group: "apps"
+      kind: "*"
+    - group: "networking.k8s.io"
+      kind: "*"
+    - group: "autoscaling"
+      kind: "*"
+    - group: "policy"
+      kind: "*"
+  # Role definitions for RBAC
+  roles:
+    - name: deployer
+      description: "Deployment role for CI/CD pipeline"
+      policies:
+        - p, proj:smartinventory:deployer, applications, sync, smartinventory/*, allow
+        - p, proj:smartinventory:deployer, applications, get, smartinventory/*, allow
+      groups:
+        - smartinventory-deployers
+---
+# =============================================================================
+# Production Application
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smartinventory-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: smartinventory
+    app.kubernetes.io/environment: production
+  annotations:
+    # Notification annotations for Slack
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: smartinventory-deployments
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: smartinventory-alerts
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: smartinventory-alerts
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: smartinventory
+  source:
+    repoURL: "https://github.com/jakkalilokesh/Smart-Inventory-DevOps.git"
+    targetRevision: main
+    path: helm/smartinventory
+    helm:
+      releaseName: smartinventory
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      parameters:
+        - name: image.repository
+          value: "harbor.smartinventory.com/smartinventory/smartinventory"
+        - name: image.pullPolicy
+          value: "Always"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: smartinventory-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+      - Validate=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  # Health checks
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+  revisionHistoryLimit: 10
+---
+# =============================================================================
+# Staging Application
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smartinventory-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: smartinventory
+    app.kubernetes.io/environment: staging
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: smartinventory
+  source:
+    repoURL: "https://github.com/jakkalilokesh/Smart-Inventory-DevOps.git"
+    targetRevision: develop
+    path: helm/smartinventory
+    helm:
+      releaseName: smartinventory
+      valueFiles:
+        - values.yaml
+        - values-staging.yaml
+      parameters:
+        - name: image.repository
+          value: "harbor.smartinventory.com/smartinventory/smartinventory"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: smartinventory-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - Validate=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+# =============================================================================
+# Dev Application
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smartinventory-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: smartinventory
+    app.kubernetes.io/environment: dev
+spec:
+  project: smartinventory
+  source:
+    repoURL: "https://github.com/jakkalilokesh/Smart-Inventory-DevOps.git"
+    targetRevision: develop
+    path: helm/smartinventory
+    helm:
+      releaseName: smartinventory
+      valueFiles:
+        - values.yaml
+        - values-dev.yaml
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: smartinventory-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

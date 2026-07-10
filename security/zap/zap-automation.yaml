@@ -1,0 +1,200 @@
+# =============================================================================
+# OWASP ZAP Automation Framework - DAST Configuration
+# =============================================================================
+# Purpose: Dynamic Application Security Testing against the running app.
+#          Detects runtime vulnerabilities like XSS, SQLi, CSRF, security
+#          misconfigurations that static analysis cannot find.
+# Integration: Runs AFTER deployment to staging/QA environment. Validates
+#              the live application before production promotion.
+# Fail Criteria: Any HIGH/CRITICAL alert fails the pipeline.
+# =============================================================================
+
+env:
+  contexts:
+    - name: "SmartInventory"
+      urls:
+        - "https://smartinventory-staging.example.com"
+      includePaths:
+        - "https://smartinventory-staging.example.com.*"
+      excludePaths:
+        - ".*\\.js$"
+        - ".*\\.css$"
+        - ".*\\.png$"
+        - ".*\\.jpg$"
+        - ".*\\.gif$"
+        - ".*\\.ico$"
+        - ".*\\.woff$"
+        - ".*\\.woff2$"
+      authentication:
+        method: "form"
+        parameters:
+          loginUrl: "https://smartinventory-staging.example.com/login"
+          loginRequestData: "username={%username%}&password={%password%}"
+        verification:
+          method: "response"
+          loggedInRegex: "\\Qdashboard\\E"
+          loggedOutRegex: "\\Qlogin\\E"
+      users:
+        - name: "test-user"
+          credentials:
+            username: "${ZAP_AUTH_USER}"
+            password: "${ZAP_AUTH_PASS}"
+
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  # -- Step 1: Spider the application --
+  - type: spider
+    parameters:
+      context: "SmartInventory"
+      user: "test-user"
+      url: "https://smartinventory-staging.example.com"
+      maxDuration: 5          # minutes
+      maxDepth: 10
+      maxChildren: 20
+      acceptCookies: true
+      handleODataParametersVisited: false
+      handleParameters: "USE_ALL"
+      parseComments: true
+      parseRobotsTxt: true
+      parseSitemapXml: true
+
+  # -- Step 2: AJAX Spider for JavaScript-heavy pages --
+  - type: spiderAjax
+    parameters:
+      context: "SmartInventory"
+      user: "test-user"
+      url: "https://smartinventory-staging.example.com"
+      maxDuration: 5          # minutes
+      maxCrawlDepth: 5
+      numberOfBrowsers: 2
+      browserId: "firefox-headless"
+      clickDefaultElems: true
+      clickElemsOnce: true
+
+  # -- Step 3: Passive Scan (runs automatically) --
+  - type: passiveScan-config
+    parameters:
+      maxAlertsPerRule: 10
+      scanOnlyInScope: true
+      maxBodySizeInBytesToScan: 10000
+    rules:
+      - id: 10035    # Strict-Transport-Security
+        threshold: "medium"
+      - id: 10036    # Server Leaks Version Info
+        threshold: "low"
+      - id: 10038    # Content Security Policy
+        threshold: "medium"
+      - id: 10054    # Cookie without SameSite
+        threshold: "medium"
+      - id: 10055    # CSP header missing
+        threshold: "medium"
+      - id: 10096    # Timestamp Disclosure
+        threshold: "off"
+      - id: 10098    # Cross-Domain Misconfiguration
+        threshold: "medium"
+
+  # -- Step 4: Active Scan (attack mode) --
+  - type: activeScan
+    parameters:
+      context: "SmartInventory"
+      user: "test-user"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 30
+      policy: "Default Policy"
+      addQueryParam: false
+      defaultPolicy: "Default Policy"
+      delayInMs: 0
+      handleAntiCSRFTokens: true
+      inScopeOnly: true
+      scanHeadersAllRequests: false
+      threadPerHost: 5
+    policyDefinition:
+      rules:
+        # SQL Injection tests
+        - id: 40018    # SQL Injection
+          strength: "high"
+          threshold: "medium"
+        - id: 40019    # SQL Injection (MySQL)
+          strength: "high"
+          threshold: "medium"
+        # XSS tests
+        - id: 40012    # Reflected XSS
+          strength: "high"
+          threshold: "medium"
+        - id: 40014    # Persistent XSS
+          strength: "high"
+          threshold: "medium"
+        # Path Traversal
+        - id: 6        # Path Traversal
+          strength: "high"
+          threshold: "medium"
+        # Remote File Include
+        - id: 7        # Remote File Inclusion
+          strength: "medium"
+          threshold: "medium"
+        # Command Injection
+        - id: 90020    # Remote OS Command Injection
+          strength: "high"
+          threshold: "medium"
+        # CSRF
+        - id: 20012    # CSRF
+          strength: "medium"
+          threshold: "low"
+
+  # -- Step 5: Wait for passive scan completion --
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10         # minutes
+
+  # -- Step 6: Generate Reports --
+  - type: report
+    parameters:
+      template: "traditional-html-plus"
+      reportDir: "/zap/reports/"
+      reportFile: "zap-report"
+      reportTitle: "SmartInventory DAST Security Report"
+      reportDescription: "OWASP ZAP automated security scan results"
+      displayReport: false
+    risks:
+      - high
+      - medium
+      - low
+      - info
+
+  - type: report
+    parameters:
+      template: "traditional-json-plus"
+      reportDir: "/zap/reports/"
+      reportFile: "zap-report"
+      reportTitle: "SmartInventory DAST Security Report"
+    risks:
+      - high
+      - medium
+      - low
+
+  # -- Step 7: Output Summary --
+  - type: outputSummary
+    parameters:
+      format: "long"
+      summaryFile: "/zap/reports/zap-summary.json"
+    rules:
+      # Fail on HIGH and CRITICAL alerts
+      - id: 40018    # SQL Injection
+        action: "FAIL"
+      - id: 40012    # Reflected XSS
+        action: "FAIL"
+      - id: 40014    # Persistent XSS
+        action: "FAIL"
+      - id: 90020    # Remote OS Command Injection
+        action: "FAIL"
+      - id: 6        # Path Traversal
+        action: "FAIL"
+      # Warn on MEDIUM alerts
+      - id: 10035    # HSTS
+        action: "WARN"
+      - id: 10038    # CSP
+        action: "WARN"

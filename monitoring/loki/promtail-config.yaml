@@ -1,0 +1,96 @@
+# =============================================================================
+# Promtail Configuration - Log Shipping Agent
+# =============================================================================
+# Purpose: DaemonSet agent that discovers pods, collects container logs,
+#          and ships them to Loki with proper labels for querying.
+# =============================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    tenant_id: smartinventory
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 10s
+
+scrape_configs:
+  # --- Kubernetes Pod Logs ---
+  - job_name: kubernetes-pods
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      # Only scrape pods with annotation
+      - source_labels: [__meta_kubernetes_pod_annotation_promtail_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: app
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        target_label: container
+      - source_labels: [__meta_kubernetes_pod_label_environment]
+        target_label: environment
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            message: message
+            timestamp: timestamp
+            logger: logger
+      - labels:
+          level:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z"
+
+  # --- SmartInventory Application Logs ---
+  - job_name: smartinventory
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: smartinventory
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+    pipeline_stages:
+      # Parse Tomcat/Log4j2 log format
+      - regex:
+          expression: '^(?P<timestamp>\d{2}-\w{3}-\d{4} \d{2}:\d{2}:\d{2}\.\d{3}) (?P<level>\w+) \[(?P<thread>[^\]]+)\] (?P<logger>[^ ]+) (?P<message>.*)$'
+      - labels:
+          level:
+          thread:
+          logger:
+
+  # --- Falco Security Alerts ---
+  - job_name: falco
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: falco
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+    pipeline_stages:
+      - json:
+          expressions:
+            priority: priority
+            rule: rule
+            output: output
+      - labels:
+          priority:
+          rule:

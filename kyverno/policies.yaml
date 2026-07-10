@@ -1,0 +1,241 @@
+# =============================================================================
+# Kyverno Policies - Policy as Code for Kubernetes
+# =============================================================================
+# Purpose: Enforce security policies at admission time. Kyverno validates,
+#          mutates, and generates Kubernetes resources based on policies.
+# Integration: Runs as an admission webhook in the cluster. All pod
+#              creation requests are validated against these policies.
+# =============================================================================
+---
+# --- Policy 1: Require Signed Images (Cosign Verification) ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signature
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >
+      Ensures all container images are signed with Cosign before deployment.
+      Implements supply chain security by rejecting unsigned images.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-cosign-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - smartinventory-prod
+                - smartinventory-staging
+      verifyImages:
+        - imageReferences:
+            - "harbor.smartinventory.com/smartinventory/*"
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      # Replace with actual Cosign public key
+                      # Generated via: cosign generate-key-pair
+                      -----END PUBLIC KEY-----
+                    signatureAlgorithm: sha256
+---
+# --- Policy 2: Disallow Privileged Containers ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Disallow Privileged Containers
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: deny-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - security
+      validate:
+        message: "Privileged containers are not allowed."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  privileged: "!true"
+            =(initContainers):
+              - securityContext:
+                  privileged: "!true"
+---
+# --- Policy 3: Require Resource Limits ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/category: Resource Management
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-resource-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - smartinventory-prod
+                - smartinventory-staging
+                - smartinventory-qa
+      validate:
+        message: "CPU and memory limits are required for all containers."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"
+                  requests:
+                    memory: "?*"
+                    cpu: "?*"
+---
+# --- Policy 4: Disallow Latest Tag ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: deny-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - smartinventory-prod
+      validate:
+        message: "Using 'latest' tag is not allowed in production."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+---
+# --- Policy 5: Require Non-Root User ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-run-as-non-root
+  annotations:
+    policies.kyverno.io/title: Require Non-Root User
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-non-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - smartinventory-prod
+                - smartinventory-staging
+      validate:
+        message: "Containers must run as non-root user."
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+---
+# --- Policy 6: Require Allowed Registries ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-registries
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - smartinventory-prod
+      validate:
+        message: >
+          Images must come from approved registries:
+          harbor.smartinventory.com
+        pattern:
+          spec:
+            containers:
+              - image: "harbor.smartinventory.com/*"
+---
+# --- Policy 7: Add Default Network Policy ---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-network-policy
+  annotations:
+    policies.kyverno.io/title: Generate Default Network Policy
+    policies.kyverno.io/category: Networking
+spec:
+  rules:
+    - name: generate-default-deny
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  app.kubernetes.io/part-of: smartinventory
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: default-deny-all
+        namespace: "{{request.object.metadata.name}}"
+        data:
+          spec:
+            podSelector: {}
+            policyTypes:
+              - Ingress
+              - Egress

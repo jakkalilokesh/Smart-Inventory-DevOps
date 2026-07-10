@@ -1,0 +1,164 @@
+# =============================================================================
+# Network Policies - Zero Trust Network Segmentation
+# =============================================================================
+# Purpose: Enforce microsegmentation between application tiers.
+#          Default-deny all traffic, then explicitly allow only required flows.
+# Security: Implements Zero Trust networking within the Kubernetes cluster.
+# =============================================================================
+---
+# --- Default Deny All Ingress/Egress in Production ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: smartinventory-prod
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+    policy-type: baseline
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# --- Allow Application Ingress from Ingress Controller ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-ingress
+  namespace: smartinventory-prod
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+spec:
+  podSelector:
+    matchLabels:
+      app: smartinventory
+      tier: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from NGINX Ingress Controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow traffic from Prometheus for metrics scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# --- Allow Application Egress to Database ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-to-database
+  namespace: smartinventory-prod
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+spec:
+  podSelector:
+    matchLabels:
+      app: smartinventory
+      tier: backend
+  policyTypes:
+    - Egress
+  egress:
+    # Allow connection to MySQL (RDS via private subnet)
+    - ports:
+        - protocol: TCP
+          port: 3306
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS egress for external API calls
+    - ports:
+        - protocol: TCP
+          port: 443
+---
+# --- Database Network Policy (if running MySQL in-cluster) ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-database-ingress
+  namespace: smartinventory-prod
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+spec:
+  podSelector:
+    matchLabels:
+      app: smartinventory
+      tier: database
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow connections from the application pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: smartinventory
+              tier: backend
+      ports:
+        - protocol: TCP
+          port: 3306
+  egress:
+    # DNS only
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+---
+# --- Monitoring Namespace: Allow Prometheus scraping ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Egress
+  egress:
+    # Allow scraping all namespaces on metrics ports
+    - ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9100
+        - protocol: TCP
+          port: 9104
+    # DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53

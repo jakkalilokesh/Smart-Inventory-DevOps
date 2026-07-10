@@ -1,0 +1,25 @@
+# =============================================================================
+# Grafana Datasources Provisioning Configuration
+# =============================================================================
+apiVersion: 1
+
+datasources:
+  # --- Prometheus Metrics Datasource ---
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus-service.monitoring.svc.cluster.local:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+    editable: true
+
+  # --- Loki Logs Datasource ---
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki.monitoring.svc.cluster.local:3100
+    jsonData:
+      maxLines: 5000
+    editable: true

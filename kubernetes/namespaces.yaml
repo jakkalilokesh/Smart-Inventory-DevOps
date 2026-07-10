@@ -1,0 +1,91 @@
+# =============================================================================
+# Kubernetes Namespace Definitions - Environment Isolation
+# =============================================================================
+# Purpose: Namespace-based isolation for dev, qa, staging, production envs
+#          plus dedicated namespaces for platform services.
+# Security: Each namespace has resource quotas and limit ranges to prevent
+#           noisy-neighbor issues and resource exhaustion attacks.
+# =============================================================================
+---
+# --- Development Environment ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: smartinventory-dev
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+    environment: development
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- QA Environment ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: smartinventory-qa
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+    environment: qa
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- Staging Environment ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: smartinventory-staging
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+    environment: staging
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- Production Environment ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: smartinventory-prod
+  labels:
+    app.kubernetes.io/part-of: smartinventory
+    environment: production
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- Monitoring Stack ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: smartinventory-platform
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: restricted
+---
+# --- Security Tools (Falco, Kyverno) ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: security
+  labels:
+    app.kubernetes.io/part-of: smartinventory-platform
+    pod-security.kubernetes.io/enforce: privileged
+---
+# --- ArgoCD GitOps ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/part-of: smartinventory-platform
+---
+# --- Cosign Image Verification ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cosign-system
+  labels:
+    app.kubernetes.io/part-of: smartinventory-platform

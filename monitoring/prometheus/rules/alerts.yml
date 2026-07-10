@@ -1,64 +1,90 @@
+# =============================================================================
+# Prometheus Alert Rules - SmartInventory Platform
+# =============================================================================
+
 groups:
-  - name: smartinventory_alerts
-    interval: 30s
+  - name: smartinventory-application
     rules:
-      # Application Health Alerts
-      - alert: ApplicationDown
-        expr: up{job="smartinventory"} == 0
-        for: 1m
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{app="smartinventory", status=~"5.."}[5m]))
+          / sum(rate(http_requests_total{app="smartinventory"}[5m])) > 0.05
+        for: 5m
         labels:
           severity: critical
+          category: application
         annotations:
-          summary: "SmartInventory application is down"
-          description: "SmartInventory application has been down for more than 1 minute."
+          summary: "High HTTP error rate in SmartInventory"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
 
-      - alert: HighErrorRate
-        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+      - alert: HighResponseLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{app="smartinventory"}[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "High P95 response latency is {{ $value }}s"
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{namespace=~"smartinventory-.*"}[15m]) * 60 * 15 > 3
         for: 5m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+
+      - alert: PodNotReady
+        expr: kube_pod_status_ready{namespace=~"smartinventory-.*", condition="true"} == 0
+        for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "High error rate detected"
-          description: "Error rate is {{ $value }} errors per second."
-
-      - alert: HighLatency
-        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High latency detected"
-          description: "95th percentile latency is {{ $value }} seconds."
-
-      # Resource Usage Alerts
-      - alert: HighCPUUsage
-        expr: rate(container_cpu_usage_seconds_total{container="smartinventory"}[5m]) > 0.8
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High CPU usage"
-          description: "CPU usage is above 80% for more than 5 minutes."
+          summary: "Pod {{ $labels.pod }} not ready for 10m"
 
       - alert: HighMemoryUsage
-        expr: container_memory_usage_bytes{container="smartinventory"} / container_spec_memory_limit_bytes{container="smartinventory"} > 0.9
+        expr: |
+          container_memory_usage_bytes{namespace=~"smartinventory-.*", container!=""}
+          / container_spec_memory_limit_bytes > 0.9
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High memory usage"
-          description: "Memory usage is above 90% for more than 5 minutes."
+          summary: "Container {{ $labels.container }} memory above 90%"
 
-      - alert: DiskSpaceLow
-        expr: (node_filesystem_avail_bytes{mountpoint="/var/lib/mysql"} / node_filesystem_size_bytes{mountpoint="/var/lib/mysql"}) < 0.1
+  - name: smartinventory-infrastructure
+    rules:
+      - alert: NodeNotReady
+        expr: kube_node_status_condition{condition="Ready", status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: infrastructure
+        annotations:
+          summary: "Node {{ $labels.node }} is not ready"
+
+      - alert: NodeDiskPressure
+        expr: kube_node_status_condition{condition="DiskPressure", status="true"} == 1
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "Disk space low on MySQL"
-          description: "MySQL disk space is below 10%."
+          summary: "Node {{ $labels.node }} has disk pressure"
 
-      # Database Alerts
+      - alert: HPAMaxedOut
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas
+          == kube_horizontalpodautoscaler_spec_max_replicas
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HPA {{ $labels.horizontalpodautoscaler }} at max replicas"
+
+  - name: smartinventory-database
+    rules:
       - alert: MySQLDown
         expr: mysql_up == 0
         for: 1m
@@ -66,22 +92,31 @@ groups:
           severity: critical
         annotations:
           summary: "MySQL database is down"
-          description: "MySQL database has been down for more than 1 minute."
 
-      - alert: MySQLSlowQueries
-        expr: rate(mysql_global_status_slow_queries[5m]) > 10
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High number of slow queries"
-          description: "MySQL slow query rate is {{ $value }} per second."
-
-      - alert: MySQLConnectionsHigh
+      - alert: MySQLHighConnections
         expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "MySQL connection usage high"
-          description: "MySQL connection usage is above 80%."
+          summary: "MySQL connections above 80%"
+
+  - name: smartinventory-security
+    rules:
+      - alert: FalcoCriticalAlert
+        expr: sum(rate(falco_events{priority="Critical"}[5m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Falco critical security event detected"
+
+      - alert: KyvernoPolicyViolation
+        expr: sum(rate(kyverno_policy_results_total{rule_result="fail"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Kyverno policy violation detected"

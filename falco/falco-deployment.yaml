@@ -1,0 +1,102 @@
+# =============================================================================
+# Falco DaemonSet Deployment Configuration
+# =============================================================================
+# Purpose: Deploy Falco as a DaemonSet with Falcosidekick for alert routing.
+# Integration: Falcosidekick forwards alerts to Slack and Alertmanager.
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: falco
+  namespace: security
+  labels:
+    app: falco
+    app.kubernetes.io/name: falco
+spec:
+  selector:
+    matchLabels:
+      app: falco
+  template:
+    metadata:
+      labels:
+        app: falco
+    spec:
+      serviceAccountName: falco
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+      containers:
+        - name: falco
+          image: falcosecurity/falco-no-driver:0.37.1
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: dev
+              mountPath: /host/dev
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: boot
+              mountPath: /host/boot
+              readOnly: true
+            - name: lib-modules
+              mountPath: /host/lib/modules
+              readOnly: true
+            - name: usr
+              mountPath: /host/usr
+              readOnly: true
+            - name: etc
+              mountPath: /host/etc
+              readOnly: true
+            - name: custom-rules
+              mountPath: /etc/falco/rules.d
+              readOnly: true
+          env:
+            - name: FALCO_BPF_PROBE
+              value: ""
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: boot
+          hostPath:
+            path: /boot
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: usr
+          hostPath:
+            path: /usr
+        - name: etc
+          hostPath:
+            path: /etc
+        - name: custom-rules
+          configMap:
+            name: falco-custom-rules
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-custom-rules
+  namespace: security
+data:
+  smartinventory-rules.yaml: |
+    # Rules are loaded from falco/falco-rules.yaml via ConfigMap
+    # See falco-rules.yaml for full rule definitions
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: falco
+  namespace: security

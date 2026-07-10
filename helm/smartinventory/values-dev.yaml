@@ -1,0 +1,41 @@
+# =============================================================================
+# Helm Values Override - Dev Environment
+# =============================================================================
+replicaCount: 1
+
+image:
+  repository: harbor.smartinventory.com/smartinventory/smartinventory
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+mysql:
+  enabled: true
+  auth:
+    rootPassword: "devroot"
+    database: "smartinventory"
+    username: "smartinv"
+    password: "devpass123"
+  persistence:
+    size: 5Gi
+
+prometheus:
+  enabled: false

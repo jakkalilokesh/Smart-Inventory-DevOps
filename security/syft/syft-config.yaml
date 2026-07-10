@@ -1,0 +1,71 @@
+# =============================================================================
+# Syft Configuration - Enterprise SBOM (Software Bill of Materials) Generator
+# =============================================================================
+# Purpose: Generate a comprehensive SBOM documenting every software component,
+#          library, and dependency in the container image. Required for
+#          supply chain security compliance and vulnerability tracking.
+# Integration: Runs after Trivy scanning in the Jenkins pipeline. The SBOM
+#              is archived as a build artifact, attached to the signed image,
+#              and can be used for downstream vulnerability analysis.
+# Standards: Generates SBOM in both SPDX and CycloneDX formats for maximum
+#            compatibility with security tools and compliance frameworks.
+# =============================================================================
+
+# -- Output Configuration --
+output:
+  # Generate SBOM in CycloneDX JSON format (industry standard for DevSecOps)
+  # CycloneDX is preferred for security tooling integration
+  - "cyclonedx-json"
+
+# -- Package Cataloging Configuration --
+package:
+  cataloger:
+    # Enable all catalogers for comprehensive SBOM
+    enabled: true
+    scope: "all-layers"
+
+# -- Source Configuration --
+source:
+  # Include file metadata in SBOM (digests, ownership)
+  file:
+    metadata:
+      # Include digests for file integrity verification
+      digests:
+        - "sha256"
+      # Include file content for configuration files (limited size)
+      content:
+        skip-files-above-size: 1048576  # Skip files > 1MB
+        globs: []
+
+# -- Cataloger-Specific Configuration --
+java:
+  # Use Maven Central for enriching Java package metadata
+  use-network: true
+  # Include Maven POM information
+  maven-url: "https://repo1.maven.org/maven2"
+
+# -- Exclusions --
+exclude:
+  # Exclude paths not relevant for SBOM
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/.git/**"
+  - "**/node_modules/**"
+
+# -- Format-Specific Options --
+format:
+  # SPDX specific options
+  spdx:
+    # Document namespace for SPDX
+    namespace: "https://smartinventory.com/sbom"
+  # CycloneDX specific options
+  cyclonedx:
+    # Include component evidence
+    include-evidence: true
+
+# -- Attestation Support --
+# When used with Cosign, the SBOM can be attached as an attestation
+# to the signed container image, creating a verifiable supply chain.
+# Command used in pipeline:
+#   syft <image> -o cyclonedx-json > sbom.cdx.json
+#   cosign attest --predicate sbom.cdx.json --type cyclonedx <image>

@@ -1,0 +1,100 @@
+# =============================================================================
+# Helm Values Override - Production Environment
+# =============================================================================
+replicaCount: 3
+
+image:
+  repository: harbor.smartinventory.com/smartinventory/smartinventory
+  pullPolicy: Always
+  tag: ""  # Set by ArgoCD from pipeline
+
+imagePullSecrets:
+  - name: harbor-registry-secret
+
+serviceAccount:
+  create: true
+  name: "smartinventory-sa"
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::role/smartinventory-pod-role"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # Tomcat needs writable work/temp dirs
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/server-snippets: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" always;
+  hosts:
+    - host: smartinventory.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: smartinventory-tls
+      hosts:
+        - smartinventory.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# MySQL disabled in production (using AWS RDS)
+mysql:
+  enabled: false
+
+env:
+  DB_HOST: "${RDS_ENDPOINT}"
+  DB_PORT: "3306"
+  DB_NAME: "smartinventory"
+
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s

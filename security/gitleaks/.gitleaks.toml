@@ -1,0 +1,217 @@
+# =============================================================================
+# Gitleaks Configuration - Enterprise Secret Detection
+# =============================================================================
+# Purpose: Detect hardcoded secrets, API keys, tokens, passwords, and
+#          credentials in the source code before they reach the repository.
+# Integration: Runs as the FIRST security gate in the Jenkins pipeline,
+#              immediately after checkout. Prevents secret leakage at source.
+# Fail Criteria: Any detected secret fails the pipeline immediately.
+# =============================================================================
+
+title = "SmartInventory Enterprise Gitleaks Configuration"
+
+# =============================================================================
+# Global Configuration
+# =============================================================================
+[extend]
+# Extend the default gitleaks ruleset with additional enterprise patterns
+# useDefault = true means all built-in rules are active
+
+# =============================================================================
+# Custom Rules - Application-Specific Secret Patterns
+# =============================================================================
+
+# --- AWS Credentials ---
+[[rules]]
+id = "aws-access-key-id"
+description = "AWS Access Key ID - Detects hardcoded AWS access keys"
+regex = '''(?i)(AKIA[0-9A-Z]{16})'''
+tags = ["aws", "credentials", "critical"]
+keywords = ["AKIA"]
+
+[[rules]]
+id = "aws-secret-access-key"
+description = "AWS Secret Access Key - Detects hardcoded AWS secret keys"
+regex = '''(?i)aws_secret_access_key\s*=\s*['"]?([A-Za-z0-9/+=]{40})['"]?'''
+tags = ["aws", "credentials", "critical"]
+keywords = ["aws_secret_access_key"]
+
+[[rules]]
+id = "aws-session-token"
+description = "AWS Session Token - Detects temporary AWS session tokens"
+regex = '''(?i)aws_session_token\s*=\s*['"]?([A-Za-z0-9/+=]{100,})['"]?'''
+tags = ["aws", "credentials", "critical"]
+keywords = ["aws_session_token"]
+
+# --- Database Credentials ---
+[[rules]]
+id = "mysql-connection-string"
+description = "MySQL Connection String with embedded credentials"
+regex = '''mysql://[^:]+:([^@]+)@[^/]+/[^\s'"]+'''
+tags = ["database", "credentials", "critical"]
+keywords = ["mysql://"]
+
+[[rules]]
+id = "jdbc-connection-string"
+description = "JDBC Connection String with embedded password"
+regex = '''jdbc:mysql://[^?]+\?.*password=([^&\s'"]+)'''
+tags = ["database", "credentials", "critical"]
+keywords = ["jdbc:mysql"]
+
+[[rules]]
+id = "database-password-assignment"
+description = "Database password assigned in configuration files"
+regex = '''(?i)(db[_.]?password|database[_.]?password|mysql[_.]?password)\s*[:=]\s*['"]?([^'"\s]{8,})['"]?'''
+tags = ["database", "credentials", "high"]
+keywords = ["password"]
+
+# --- API Keys and Tokens ---
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key pattern detection"
+regex = '''(?i)(api[_-]?key|apikey)\s*[:=]\s*['"]?([a-zA-Z0-9]{32,})['"]?'''
+tags = ["api", "credentials", "high"]
+keywords = ["api_key", "apikey", "api-key"]
+
+[[rules]]
+id = "jwt-token"
+description = "JSON Web Token (JWT) - Detects hardcoded JWTs"
+regex = '''eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+'''
+tags = ["jwt", "token", "high"]
+keywords = ["eyJ"]
+
+[[rules]]
+id = "bearer-token"
+description = "Bearer Token in Authorization headers"
+regex = '''(?i)authorization\s*[:=]\s*['"]?bearer\s+([a-zA-Z0-9._\-]{20,})['"]?'''
+tags = ["auth", "token", "high"]
+keywords = ["bearer"]
+
+# --- Docker and Container Registry ---
+[[rules]]
+id = "docker-registry-password"
+description = "Docker Registry password or auth token"
+regex = '''(?i)(docker[_-]?password|registry[_-]?password)\s*[:=]\s*['"]?([^'"\s]{8,})['"]?'''
+tags = ["docker", "credentials", "critical"]
+keywords = ["docker_password", "registry_password"]
+
+[[rules]]
+id = "harbor-credentials"
+description = "Harbor container registry credentials"
+regex = '''(?i)(harbor[_-]?password|harbor[_-]?secret)\s*[:=]\s*['"]?([^'"\s]{8,})['"]?'''
+tags = ["harbor", "credentials", "critical"]
+keywords = ["harbor"]
+
+# --- Kubernetes Secrets ---
+[[rules]]
+id = "kubernetes-secret-data"
+description = "Kubernetes Secret with base64 encoded data"
+regex = '''(?i)kind:\s*Secret[\s\S]*?data:[\s\S]*?([a-zA-Z0-9+/]{40,}={0,2})'''
+tags = ["kubernetes", "secret", "high"]
+keywords = ["kind: Secret"]
+
+# --- SSH and TLS Keys ---
+[[rules]]
+id = "private-key-rsa"
+description = "RSA Private Key detected in source"
+regex = '''-----BEGIN RSA PRIVATE KEY-----'''
+tags = ["ssh", "key", "critical"]
+keywords = ["BEGIN RSA PRIVATE KEY"]
+
+[[rules]]
+id = "private-key-ec"
+description = "EC Private Key detected in source"
+regex = '''-----BEGIN EC PRIVATE KEY-----'''
+tags = ["ssh", "key", "critical"]
+keywords = ["BEGIN EC PRIVATE KEY"]
+
+[[rules]]
+id = "private-key-openssh"
+description = "OpenSSH Private Key detected in source"
+regex = '''-----BEGIN OPENSSH PRIVATE KEY-----'''
+tags = ["ssh", "key", "critical"]
+keywords = ["BEGIN OPENSSH PRIVATE KEY"]
+
+# --- Slack and Communication ---
+[[rules]]
+id = "slack-webhook-url"
+description = "Slack Webhook URL with embedded token"
+regex = '''https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[a-zA-Z0-9]+'''
+tags = ["slack", "webhook", "high"]
+keywords = ["hooks.slack.com"]
+
+[[rules]]
+id = "slack-bot-token"
+description = "Slack Bot Token"
+regex = '''xoxb-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]{24,}'''
+tags = ["slack", "token", "high"]
+keywords = ["xoxb-"]
+
+# --- SonarQube ---
+[[rules]]
+id = "sonarqube-token"
+description = "SonarQube authentication token"
+regex = '''(?i)(sonar[_.]?token|sonar[_.]?login)\s*[:=]\s*['"]?([a-zA-Z0-9]{40})['"]?'''
+tags = ["sonarqube", "token", "high"]
+keywords = ["sonar"]
+
+# --- Cosign / Sigstore ---
+[[rules]]
+id = "cosign-private-key"
+description = "Cosign private key for image signing"
+regex = '''-----BEGIN ENCRYPTED COSIGN PRIVATE KEY-----'''
+tags = ["cosign", "key", "critical"]
+keywords = ["COSIGN PRIVATE KEY"]
+
+# =============================================================================
+# Allowlist - Paths and patterns to exclude from scanning
+# =============================================================================
+[allowlist]
+description = "Global allowlist for false positives and test fixtures"
+
+# Files to exclude from secret scanning
+paths = [
+    # Test fixtures and mock data
+    '''(?i)src/test/.*''',
+    '''(?i).*test.*fixture.*''',
+    '''(?i).*mock.*data.*''',
+
+    # Documentation and examples
+    '''(?i)docs/.*''',
+    '''(?i).*\.md$''',
+    '''(?i).*example.*''',
+
+    # Dependency lock files
+    '''(?i).*\.lock$''',
+    '''(?i)package-lock\.json''',
+
+    # Generated files
+    '''(?i)target/.*''',
+    '''(?i)\.gradle/.*''',
+    '''(?i)node_modules/.*''',
+    '''(?i)\.terraform/.*''',
+
+    # Binary files
+    '''(?i).*\.(jar|war|class|png|jpg|gif|ico|woff|ttf|eot)$''',
+
+    # Gitleaks own config
+    '''(?i)\.gitleaks\.toml$''',
+    '''(?i)security/gitleaks/.*''',
+
+    # Dependency check suppressions (contains hashes, not secrets)
+    '''dependency-check-suppressions\.xml''',
+
+    # Terraform state files (should not be in repo but exclude if present)
+    '''(?i).*terraform\.tfstate.*''',
+]
+
+# Regex patterns to exclude from findings (false positive suppression)
+regexes = [
+    # Example/placeholder passwords in documentation
+    '''(?i)password\s*[:=]\s*['"]?(example|placeholder|changeme|your[_-]?password|CHANGE_ME|<password>)['"]?''',
+    # Base64 encoded "smartinv123" (known test password in values.yaml)
+    '''c21hcnRpbnYxMjM=''',
+]
+
+# Specific commits to exclude
+commits = []

@@ -1,10 +1,30 @@
-# SmartInventory
+# SmartInventory & Enterprise DevSecOps Platform
 
-Enterprise Inventory Management System - A production-quality 3-tier Java web application for managing inventory, products, categories, suppliers, and stock transactions.
+SmartInventory is a production-quality 3-tier Java web application for managing inventory, products, categories, suppliers, and stock transactions. This repository has been elevated into a **complete end-to-end Enterprise DevSecOps Platform**, demonstrating standard continuous integration, continuous delivery, supply chain security, and runtime observability using exclusively open-source tools.
+
+---
+
+## 🚀 Enterprise DevSecOps Platform Overview
+
+This project includes a fully production-ready, modular, and secured CI/CD pipeline deploying to Kubernetes (AWS EKS) with GitOps (ArgoCD).
+
+### Key DevSecOps Features:
+* **Shift-Left Security Static Analysis**: Static secret scanning (Gitleaks) and SAST code scanning (Semgrep) executing on every code check-in.
+* **Vulnerability Scanning & SCA**: In-depth software composition analysis (OWASP Dependency Check) and OS package container scanning (Trivy).
+* **Supply Chain Hardening**: Automatically generates Software Bill of Materials (SBOM) (Syft) in CycloneDX format, cryptographically signs the container images (Cosign), and attaches SBOM attestations.
+* **Admission Control (Policy-as-Code)**: Runtime admission enforcement (Kyverno) validating signatures, registry sources, and Pod Security Standards (non-root execution, privilege escalation block).
+* **GitOps Continuous Deployment**: Automated GitOps sync and self-healing (Argo CD) deploying custom Helm charts across isolated namespaces (Dev, QA, Staging, Production).
+* **IaC & Manifest Hardening**: Manifest analysis (kube-score), infrastructure-as-code vulnerability scanning (Checkov), and security posture compliance (Kubescape).
+* **Dynamic Analysis (DAST)**: Automated dynamic application security tests (OWASP ZAP) executing against the live staging environment.
+* **Runtime Threat Detection**: Real-time Linux kernel monitoring (Falco) detecting unauthorized shell spawns, sensitive file access, and suspicious process executions.
+* **Enterprise Observability Stack**: Centralized log aggregation (Loki/Promtail), scrapers (Prometheus), alert routing (Alertmanager) notifying Slack & Email, and rich dashboards (Grafana).
+
+For full details on integration architecture, sequence flows, and troubleshooting, see the [Enterprise DevSecOps Architecture & Integration Guide](docs/architecture.md).
 
 ## 📋 Table of Contents
 
 - [Overview](#overview)
+- [Enterprise DevSecOps Pipeline](#enterprise-devsecops-pipeline)
 - [Features](#features)
 - [Technology Stack](#technology-stack)
 - [Architecture](#architecture)
@@ -23,6 +43,7 @@ Enterprise Inventory Management System - A production-quality 3-tier Java web ap
 ## 🎯 Overview
 
 SmartInventory is a comprehensive inventory management system built with Java 17, Maven, Servlets, JSP, and MySQL. It follows industry-standard architectural patterns including MVC, DAO, and Service Layer patterns to ensure maintainability, scalability, and security.
+
 
 ### Key Features
 

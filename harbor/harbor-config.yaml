@@ -1,0 +1,109 @@
+# =============================================================================
+# Harbor Container Registry Configuration
+# =============================================================================
+# Purpose: Configuration for Harbor private container registry including
+#          project setup, robot accounts, vulnerability scanning policy,
+#          image retention, and webhook notifications.
+# Integration: Jenkins pushes signed images to Harbor after Trivy scan.
+#              Harbor performs additional server-side vulnerability scanning.
+#              Kyverno verifies images are from Harbor before pod admission.
+# =============================================================================
+---
+# Harbor Project Configuration (applied via Harbor API or terraform)
+project:
+  name: "smartinventory"
+  public: false
+  storage_limit: -1  # Unlimited (use quota in production)
+  metadata:
+    auto_scan: "true"              # Scan images on push
+    severity: "critical"           # Block pull for critical vulns
+    prevent_vul: "true"            # Prevent pulling vulnerable images
+    reuse_sys_cve_allowlist: "true" # Use system CVE allowlist
+
+# Robot Account for CI/CD (Jenkins)
+robot_accounts:
+  - name: "robot$jenkins-ci"
+    description: "Jenkins CI/CD pipeline push account"
+    duration: -1  # No expiration
+    permissions:
+      - kind: "project"
+        namespace: "smartinventory"
+        access:
+          - resource: "repository"
+            action: "push"
+          - resource: "repository"
+            action: "pull"
+          - resource: "artifact"
+            action: "read"
+          - resource: "tag"
+            action: "create"
+          - resource: "tag"
+            action: "list"
+
+  - name: "robot$argocd-pull"
+    description: "ArgoCD image pull account"
+    duration: -1
+    permissions:
+      - kind: "project"
+        namespace: "smartinventory"
+        access:
+          - resource: "repository"
+            action: "pull"
+          - resource: "artifact"
+            action: "read"
+
+# Image Retention Policy
+retention_policy:
+  rules:
+    - tag_selectors:
+        # Keep the last 20 tagged images
+        - kind: "doublestar"
+          decoration: "matches"
+          pattern: "**"
+      scope_selectors:
+        repository:
+          - kind: "doublestar"
+            decoration: "repoMatches"
+            pattern: "**"
+      params:
+        latestPushedK: 20
+    - tag_selectors:
+        # Always keep images tagged as 'latest' or release versions
+        - kind: "doublestar"
+          decoration: "matches"
+          pattern: "{latest,v*,release-*}"
+      scope_selectors:
+        repository:
+          - kind: "doublestar"
+            decoration: "repoMatches"
+            pattern: "**"
+      params:
+        latestPushedK: 50
+  trigger:
+    kind: "Schedule"
+    settings:
+      cron: "0 0 * * 0"  # Weekly cleanup on Sunday midnight
+
+# Webhook Configuration (notify Jenkins/Slack on scan completion)
+webhooks:
+  - name: "slack-notification"
+    enabled: true
+    event_types:
+      - "SCANNING_COMPLETED"
+      - "SCANNING_FAILED"
+      - "PUSH_ARTIFACT"
+    targets:
+      - type: "slack"
+        address: "${SLACK_WEBHOOK_URL}"
+        skip_cert_verify: false
+
+# Vulnerability Scanning Policy
+scanning:
+  # Scan all images on push
+  auto_scan_on_push: true
+  # Use Trivy scanner (built into Harbor)
+  scanner: "Trivy"
+  # Block deployment of images with CRITICAL vulnerabilities
+  prevent_vulnerable_images:
+    enabled: true
+    severity_threshold: "critical"

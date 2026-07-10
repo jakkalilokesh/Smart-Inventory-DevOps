@@ -1,0 +1,131 @@
+# =============================================================================
+# Falco Runtime Security Rules - SmartInventory Custom Rules
+# =============================================================================
+# Purpose: Real-time threat detection for containers at runtime.
+#          Monitors system calls to detect suspicious activity including
+#          shell spawns, file access, network connections, and privilege
+#          escalation attempts.
+# Integration: Deployed as DaemonSet in the cluster. Alerts sent to
+#              Falcosidekick which forwards to Slack and Alertmanager.
+# =============================================================================
+
+# Custom rules appended to the default Falco ruleset
+
+- rule: Shell Spawned in SmartInventory Container
+  desc: >
+    Detect any shell (bash, sh, csh) spawned inside a SmartInventory
+    container. In production, no interactive shells should ever execute.
+  condition: >
+    spawned_process
+    and container
+    and container.image.repository contains "smartinventory"
+    and proc.name in (bash, sh, csh, zsh, ksh, dash)
+  output: >
+    CRITICAL: Shell spawned in SmartInventory container
+    (user=%user.name command=%proc.cmdline container=%container.name
+    image=%container.image.repository:%container.image.tag
+    pod=%k8s.pod.name namespace=%k8s.ns.name)
+  priority: CRITICAL
+  tags: [container, shell, smartinventory, mitre_execution]
+
+- rule: Sensitive File Access in SmartInventory
+  desc: >
+    Detect read/write access to sensitive files like /etc/passwd,
+    /etc/shadow, or credential files inside SmartInventory containers.
+  condition: >
+    open_read
+    and container
+    and container.image.repository contains "smartinventory"
+    and (fd.name startswith /etc/passwd
+         or fd.name startswith /etc/shadow
+         or fd.name startswith /root/.ssh
+         or fd.name startswith /proc/self/environ)
+  output: >
+    WARNING: Sensitive file accessed in SmartInventory container
+    (file=%fd.name user=%user.name command=%proc.cmdline
+    container=%container.name pod=%k8s.pod.name)
+  priority: WARNING
+  tags: [container, filesystem, smartinventory, mitre_credential_access]
+
+- rule: Unexpected Network Connection from SmartInventory
+  desc: >
+    Detect outbound network connections from SmartInventory to
+    unexpected ports. Only MySQL (3306) and HTTPS (443) are expected.
+  condition: >
+    outbound
+    and container
+    and container.image.repository contains "smartinventory"
+    and not (fd.sport = 3306 or fd.sport = 443 or fd.sport = 53 or fd.sport = 8080)
+  output: >
+    WARNING: Unexpected outbound connection from SmartInventory
+    (command=%proc.cmdline connection=%fd.name
+    container=%container.name pod=%k8s.pod.name
+    destination=%fd.sip:%fd.sport)
+  priority: WARNING
+  tags: [container, network, smartinventory, mitre_command_and_control]
+
+- rule: Privilege Escalation Attempt
+  desc: >
+    Detect any setuid/setgid calls or privilege escalation attempts
+    inside application containers.
+  condition: >
+    spawned_process
+    and container
+    and container.image.repository contains "smartinventory"
+    and (proc.name in (sudo, su, newgrp) or user.uid = 0)
+  output: >
+    CRITICAL: Privilege escalation attempt in SmartInventory container
+    (user=%user.name command=%proc.cmdline uid=%user.uid
+    container=%container.name pod=%k8s.pod.name)
+  priority: CRITICAL
+  tags: [container, privilege_escalation, smartinventory, mitre_privilege_escalation]
+
+- rule: Crypto Mining Detection
+  desc: >
+    Detect potential cryptocurrency mining activity by monitoring
+    for known mining process names and suspicious CPU-intensive processes.
+  condition: >
+    spawned_process
+    and container
+    and (proc.name in (xmrig, minerd, minergate, cpuminer, cgminer, bfgminer)
+         or proc.cmdline contains "stratum+tcp"
+         or proc.cmdline contains "mining"
+         or proc.cmdline contains "cryptonight")
+  output: >
+    CRITICAL: Potential crypto mining detected
+    (command=%proc.cmdline container=%container.name
+    pod=%k8s.pod.name namespace=%k8s.ns.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [container, cryptomining, mitre_resource_hijacking]
+
+- rule: Log File Tampering
+  desc: >
+    Detect attempts to delete or modify application log files
+    which could indicate an attacker covering their tracks.
+  condition: >
+    (open_write or evt.type in (unlink, unlinkat, rename, renameat))
+    and container
+    and container.image.repository contains "smartinventory"
+    and fd.name startswith /usr/local/tomcat/logs/
+  output: >
+    WARNING: Log file tampered in SmartInventory container
+    (file=%fd.name user=%user.name command=%proc.cmdline
+    container=%container.name pod=%k8s.pod.name)
+  priority: WARNING
+  tags: [container, filesystem, smartinventory, mitre_defense_evasion]
+
+- rule: Unauthorized Package Installation
+  desc: >
+    Detect package manager execution inside running containers.
+    No package installations should occur in production containers.
+  condition: >
+    spawned_process
+    and container
+    and proc.name in (apt, apt-get, yum, dnf, apk, pip, npm, gem, curl, wget)
+    and container.image.repository contains "smartinventory"
+  output: >
+    WARNING: Package manager or download tool executed in container
+    (command=%proc.cmdline container=%container.name
+    pod=%k8s.pod.name namespace=%k8s.ns.name)
+  priority: WARNING
+  tags: [container, software_management, smartinventory, mitre_execution]

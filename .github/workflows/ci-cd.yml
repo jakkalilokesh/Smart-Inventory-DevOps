@@ -7,7 +7,7 @@ on:
     branches: [ main, develop ]
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   packages: write
 
@@ -180,11 +180,21 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Deploy to staging
+      with:
+        ref: develop
+        
+    - name: Update Image Tag in Deployment Manifests
       run: |
-        echo "Deploying to staging environment"
-        # Add your deployment commands here
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Replace image tag in k8s/deployment.yaml and values-staging.yaml
+        sed -i "s|image: .*smartinventory:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" k8s/deployment.yaml
+        sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/smartinventory/values-staging.yaml
+        
+        git add k8s/deployment.yaml helm/smartinventory/values-staging.yaml
+        git commit -m "chore(gitops): update staging image tag to ${{ github.sha }} [skip ci]"
+        git push origin develop
         
   deploy-production:
     runs-on: ubuntu-latest
@@ -197,7 +207,22 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+      with:
+        ref: main
+        
+    - name: Update Image Tag in Deployment Manifests
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Replace image tag in k8s/deployment.yaml and values-prod.yaml
+        sed -i "s|image: .*smartinventory:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" k8s/deployment.yaml
+        sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/smartinventory/values-prod.yaml
+        
+        git add k8s/deployment.yaml helm/smartinventory/values-prod.yaml
+        git commit -m "chore(gitops): update production image tag to ${{ github.sha }} [skip ci]"
+        git push origin main
+        
     - name: Set up kubectl
       uses: azure/setup-kubectl@v4
       with:
@@ -210,7 +235,7 @@ jobs:
         
     - name: Deploy to Kubernetes
       run: |
-        kubectl set image deployment/smartinventory-app smartinventory-app=ghcr.io/${{ github.repository }}:latest
+        kubectl apply -f k8s/
         kubectl rollout status deployment/smartinventory-app
         
     - name: Verify deployment

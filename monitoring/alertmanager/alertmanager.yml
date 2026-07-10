@@ -1,0 +1,166 @@
+# =============================================================================
+# Alertmanager Configuration - Alert Routing & Notification
+# =============================================================================
+# Purpose: Receive alerts from Prometheus and Loki, deduplicate, group,
+#          and route them to Slack channels and email recipients.
+# Integration: Prometheus alert rules → Alertmanager → Slack + Email
+#              Falco alerts → Alertmanager → Security team Slack channel
+# =============================================================================
+
+global:
+  # SMTP configuration for email alerts
+  smtp_smarthost: "smtp.gmail.com:587"
+  smtp_from: "alerts@smartinventory.com"
+  smtp_auth_username: "${SMTP_USERNAME}"
+  smtp_auth_password: "${SMTP_PASSWORD}"
+  smtp_require_tls: true
+  # Default Slack API URL
+  slack_api_url: "${SLACK_WEBHOOK_URL}"
+  # Resolve timeout
+  resolve_timeout: 5m
+
+# -- Alert Templates --
+templates:
+  - "/etc/alertmanager/templates/*.tmpl"
+
+# -- Route Tree --
+route:
+  # Default receiver
+  receiver: "slack-default"
+  # Group alerts by these labels
+  group_by: ["alertname", "namespace", "severity"]
+  # Wait before sending grouped notifications
+  group_wait: 30s
+  # Interval between notifications for the same group
+  group_interval: 5m
+  # Repeat interval for ongoing alerts
+  repeat_interval: 4h
+
+  # Child routes for specific alert types
+  routes:
+    # CRITICAL alerts → immediate notification to all channels
+    - match:
+        severity: critical
+      receiver: "critical-alerts"
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: false
+
+    # Security alerts from Falco → Security team
+    - match_re:
+        alertname: "^(Falco|SecurityAlert|RuntimeThreat).*"
+      receiver: "security-team"
+      group_wait: 10s
+      repeat_interval: 30m
+
+    # Infrastructure alerts → DevOps team
+    - match:
+        category: infrastructure
+      receiver: "devops-team"
+      repeat_interval: 2h
+
+    # Application performance alerts
+    - match:
+        category: application
+      receiver: "app-team"
+      repeat_interval: 2h
+
+    # Pipeline alerts
+    - match:
+        category: pipeline
+      receiver: "slack-pipeline"
+      repeat_interval: 1h
+
+# -- Receivers --
+receivers:
+  # Default Slack channel
+  - name: "slack-default"
+    slack_configs:
+      - channel: "#smartinventory-alerts"
+        send_resolved: true
+        title: '{{ template "slack.default.title" . }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Namespace:* {{ .Labels.namespace }}
+          *Description:* {{ .Annotations.description }}
+          *Details:*
+          {{ range .Labels.SortedPairs }}  • *{{ .Name }}:* `{{ .Value }}`
+          {{ end }}
+          {{ end }}
+        icon_emoji: ":warning:"
+
+  # Critical alerts - Slack + Email
+  - name: "critical-alerts"
+    slack_configs:
+      - channel: "#smartinventory-critical"
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        title: "🚨 CRITICAL: {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}
+          *Severity:* CRITICAL
+          *Namespace:* {{ .Labels.namespace }}
+          *Pod:* {{ .Labels.pod }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+    email_configs:
+      - to: "jakkalilokesh@gmail.com"
+        send_resolved: true
+        headers:
+          Subject: "🚨 CRITICAL Alert: {{ .CommonLabels.alertname }}"
+
+  # Security team alerts
+  - name: "security-team"
+    slack_configs:
+      - channel: "#smartinventory-security"
+        send_resolved: true
+        color: "danger"
+        title: "🔒 Security Alert: {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}
+          *Rule:* {{ .Labels.rule }}
+          *Priority:* {{ .Labels.priority }}
+          *Container:* {{ .Labels.container }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+    email_configs:
+      - to: "jakkalilokesh@gmail.com"
+        send_resolved: true
+
+  # DevOps team
+  - name: "devops-team"
+    slack_configs:
+      - channel: "#smartinventory-devops"
+        send_resolved: true
+        title: "⚙️ Infra Alert: {{ .CommonLabels.alertname }}"
+
+  # Application team
+  - name: "app-team"
+    slack_configs:
+      - channel: "#smartinventory-app"
+        send_resolved: true
+
+  # Pipeline notifications
+  - name: "slack-pipeline"
+    slack_configs:
+      - channel: "#smartinventory-pipeline"
+        send_resolved: true
+
+# -- Inhibition Rules --
+inhibit_rules:
+  # If a critical alert fires, suppress warnings for the same alertname
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "namespace"]
+
+  # If the cluster is down, suppress all other alerts
+  - source_match:
+      alertname: "KubernetesClusterDown"
+    target_match_re:
+      alertname: ".*"
+    equal: ["cluster"]
