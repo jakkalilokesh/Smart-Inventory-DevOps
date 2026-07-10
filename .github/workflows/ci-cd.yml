@@ -203,6 +203,8 @@ jobs:
     environment:
       name: production
       url: https://smartinventory.com
+    env:
+      KUBECONFIG: ${{ github.workspace }}/kubeconfig
       
     steps:
     - name: Checkout code
@@ -231,7 +233,6 @@ jobs:
     - name: Configure kubectl
       run: |
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ${{ github.workspace }}/kubeconfig
-        echo "KUBECONFIG=${{ github.workspace }}/kubeconfig" >> $GITHUB_ENV
         
     - name: Deploy to Kubernetes
       run: |
