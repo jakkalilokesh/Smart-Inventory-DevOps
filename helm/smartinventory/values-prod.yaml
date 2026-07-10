@@ -6,7 +6,7 @@ replicaCount: 3
 image:
   repository: harbor.smartinventory.com/smartinventory/smartinventory
   pullPolicy: Always
-  tag: "0f68fb46c21512762f44d1366d1459e215e5037f"
+  tag: "fb73ec5572861f57e2256d4c3208e9cc93852283"
 
 imagePullSecrets:
   - name: harbor-registry-secret
