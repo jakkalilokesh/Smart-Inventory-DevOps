@@ -62,7 +62,6 @@ coverage/
 jacoco.exec
 
 # Security
-dependency-check-suppressions.xml
 trivy-report.json
 trivy-fs-report.json
 
