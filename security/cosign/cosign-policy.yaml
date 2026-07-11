@@ -58,8 +58,9 @@ verification:
 
     # Allowed image registries (only signed images from these registries)
     allowed_registries:
-      - "harbor.smartinventory.com"
-      - "harbor.smartinventory.com/smartinventory"
+      - "ghcr.io"
+      - "ghcr.io/jakkalilokesh"
+      - "ghcr.io/jakkalilokesh/smart-inventory-devops"
 
     # Reject unsigned images
     reject_unsigned: true

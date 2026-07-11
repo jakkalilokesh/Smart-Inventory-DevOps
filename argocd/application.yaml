@@ -87,7 +87,7 @@ spec:
         - values-prod.yaml
       parameters:
         - name: image.repository
-          value: "harbor.smartinventory.com/smartinventory/smartinventory"
+          value: "ghcr.io/jakkalilokesh/smart-inventory-devops"
         - name: image.pullPolicy
           value: "Always"
   destination:
@@ -144,7 +144,7 @@ spec:
         - values-staging.yaml
       parameters:
         - name: image.repository
-          value: "harbor.smartinventory.com/smartinventory/smartinventory"
+          value: "ghcr.io/jakkalilokesh/smart-inventory-devops"
   destination:
     server: "https://kubernetes.default.svc"
     namespace: smartinventory-staging

@@ -4,12 +4,12 @@
 replicaCount: 2
 
 image:
-  repository: harbor.smartinventory.com/smartinventory/smartinventory
+  repository: ghcr.io/jakkalilokesh/smart-inventory-devops
   pullPolicy: Always
   tag: ""
 
 imagePullSecrets:
-  - name: harbor-registry-secret
+  - name: ghcr-registry-secret
 
 podSecurityContext:
   runAsNonRoot: true
@@ -25,12 +25,12 @@ securityContext:
       - ALL
 
 service:
-  type: ClusterIP
+  type: LoadBalancer
   port: 80
   targetPort: 8080
 
 ingress:
-  enabled: true
+  enabled: false
   className: "nginx"
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-staging"

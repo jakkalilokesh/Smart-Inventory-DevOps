@@ -35,7 +35,7 @@ spec:
                 - smartinventory-staging
       verifyImages:
         - imageReferences:
-            - "harbor.smartinventory.com/smartinventory/*"
+            - "ghcr.io/jakkalilokesh/smart-inventory-devops*"
           attestors:
             - count: 1
               entries:
@@ -203,11 +203,11 @@ spec:
       validate:
         message: >
           Images must come from approved registries:
-          harbor.smartinventory.com
+          ghcr.io/jakkalilokesh/smart-inventory-devops
         pattern:
           spec:
             containers:
-              - image: "harbor.smartinventory.com/*"
+              - image: "ghcr.io/jakkalilokesh/smart-inventory-devops*"
 ---
 # --- Policy 7: Add Default Network Policy ---
 apiVersion: kyverno.io/v1

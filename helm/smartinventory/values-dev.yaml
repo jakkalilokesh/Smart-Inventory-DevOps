@@ -4,7 +4,7 @@
 replicaCount: 1
 
 image:
-  repository: harbor.smartinventory.com/smartinventory/smartinventory
+  repository: ghcr.io/jakkalilokesh/smart-inventory-devops
   pullPolicy: Always
   tag: "latest"
 
