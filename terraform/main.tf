@@ -11,10 +11,6 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
     }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.12"
-    }
   }
 }
 
@@ -34,18 +30,6 @@ provider "kubernetes" {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
     args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-  }
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-    }
   }
 }
 
@@ -213,46 +197,4 @@ resource "random_id" "bucket_suffix" {
 }
 
 # Helm Release for SmartInventory
-resource "helm_release" "smartinventory" {
-  name       = "smartinventory"
-  chart      = "../helm/smartinventory"
-  namespace  = "default"
-  wait       = false
-  
-  set {
-    name  = "replicaCount"
-    value = "3"
-  }
 
-  set {
-    name  = "prometheus.enabled"
-    value = "false"
-  }
-  
-  set {
-    name  = "image.tag"
-    value = var.app_version
-  }
-  
-  set {
-    name  = "mysql.enabled"
-    value = "false"
-  }
-  
-  set {
-    name  = "env.DB_HOST"
-    value = aws_db_instance.mysql.address
-  }
-
-  set {
-    name  = "env.DB_USER"
-    value = var.db_username
-  }
-
-  set {
-    name  = "secret.data.db.password"
-    value = base64encode(var.db_password)
-  }
-  
-  depends_on = [module.eks]
-}
