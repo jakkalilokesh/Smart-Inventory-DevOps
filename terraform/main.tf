@@ -217,6 +217,7 @@ resource "helm_release" "smartinventory" {
   name       = "smartinventory"
   chart      = "../helm/smartinventory"
   namespace  = "default"
+  wait       = false
   
   set {
     name  = "replicaCount"
