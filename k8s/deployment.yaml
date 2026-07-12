@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: smartinventory
-        image: ghcr.io/jakkalilokesh/Smart-Inventory-DevOps:922bb9c71eaa09b530fbf091169b892826e85dc2
+        image: ghcr.io/jakkalilokesh/smart-inventory-devops:294c17de53f4075946f2358e45c0482bf2119439
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

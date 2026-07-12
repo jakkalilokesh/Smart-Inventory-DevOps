@@ -6,7 +6,7 @@ replicaCount: 3
 image:
   repository: ghcr.io/jakkalilokesh/smart-inventory-devops
   pullPolicy: Always
-  tag: "922bb9c71eaa09b530fbf091169b892826e85dc2"
+  tag: "294c17de53f4075946f2358e45c0482bf2119439"
 
 imagePullSecrets:
   - name: ghcr-registry-secret
