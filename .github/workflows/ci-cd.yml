@@ -242,6 +242,31 @@ jobs:
         kubectl get pods -l app=smartinventory
         kubectl get services
         
+    - name: Get Load Balancer URL
+      run: |
+        echo "Waiting for Load Balancer DNS to be assigned..."
+        # Wait up to 2 minutes for the Load Balancer hostname or IP to be available
+        for i in {1..24}; do
+          LB_URL=$(kubectl get svc smartinventory-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -n "$LB_URL" ]; then
+            echo "============================================="
+            echo "Application successfully deployed!"
+            echo "Access the application at: http://$LB_URL"
+            echo "============================================="
+            exit 0
+          fi
+          LB_IP=$(kubectl get svc smartinventory-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          if [ -n "$LB_IP" ]; then
+            echo "============================================="
+            echo "Application successfully deployed!"
+            echo "Access the application at: http://$LB_IP"
+            echo "============================================="
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "Warning: Load Balancer DNS assignment timed out. Check it manually with: kubectl get svc smartinventory-service"
+        
   notify:
     runs-on: ubuntu-latest
     needs: [deploy-production]
