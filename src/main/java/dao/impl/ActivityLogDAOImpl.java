@@ -1,6 +1,8 @@
 package com.smartinventory.dao.impl;
 
 import com.smartinventory.dao.ActivityLogDAO;
+import com.smartinventory.dto.PaginationDTO;
+import com.smartinventory.dto.SearchCriteria;
 import com.smartinventory.model.ActivityLog;
 import com.smartinventory.util.DatabaseUtil;
 import org.apache.logging.log4j.LogManager;
@@ -264,5 +266,116 @@ public class ActivityLogDAOImpl implements ActivityLogDAO {
         }
         
         return log;
+    }
+
+    @Override
+    public PaginationDTO<ActivityLog> findWithPagination(SearchCriteria criteria) {
+        List<ActivityLog> logs = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+            "SELECT al.*, u.username FROM activity_logs al " +
+            "LEFT JOIN users u ON al.user_id = u.user_id " +
+            "WHERE 1=1"
+        );
+        
+        if (criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
+            sql.append(" AND (al.description LIKE ? OR al.action LIKE ? OR al.module LIKE ? OR u.username LIKE ?)");
+        }
+        
+        if (criteria.getStatus() != null && !criteria.getStatus().isEmpty()) {
+            sql.append(" AND al.module = ?");
+        }
+        
+        if (criteria.getRole() != null && !criteria.getRole().isEmpty()) {
+            sql.append(" AND al.action = ?");
+        }
+        
+        sql.append(" ORDER BY al.").append(criteria.getSortBy()).append(" ").append(criteria.getSortOrder());
+        sql.append(" LIMIT ? OFFSET ?");
+        
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            
+            int paramIndex = 1;
+            
+            if (criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
+                String keyword = "%" + criteria.getKeyword() + "%";
+                stmt.setString(paramIndex++, keyword);
+                stmt.setString(paramIndex++, keyword);
+                stmt.setString(paramIndex++, keyword);
+                stmt.setString(paramIndex++, keyword);
+            }
+            
+            if (criteria.getStatus() != null && !criteria.getStatus().isEmpty()) {
+                stmt.setString(paramIndex++, criteria.getStatus());
+            }
+            
+            if (criteria.getRole() != null && !criteria.getRole().isEmpty()) {
+                stmt.setString(paramIndex++, criteria.getRole());
+            }
+            
+            stmt.setInt(paramIndex++, criteria.getPageSize());
+            stmt.setInt(paramIndex, criteria.getOffset());
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                logs.add(mapRowToActivityLog(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding activity logs with pagination", e);
+        }
+        
+        int totalRecords = countByCriteria(criteria);
+        return new PaginationDTO<>(logs, criteria.getPage(), criteria.getPageSize(), totalRecords);
+    }
+
+    @Override
+    public int countByCriteria(SearchCriteria criteria) {
+        StringBuilder sql = new StringBuilder(
+            "SELECT COUNT(*) FROM activity_logs al " +
+            "LEFT JOIN users u ON al.user_id = u.user_id " +
+            "WHERE 1=1"
+        );
+        
+        if (criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
+            sql.append(" AND (al.description LIKE ? OR al.action LIKE ? OR al.module LIKE ? OR u.username LIKE ?)");
+        }
+        
+        if (criteria.getStatus() != null && !criteria.getStatus().isEmpty()) {
+            sql.append(" AND al.module = ?");
+        }
+        
+        if (criteria.getRole() != null && !criteria.getRole().isEmpty()) {
+            sql.append(" AND al.action = ?");
+        }
+        
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            
+            int paramIndex = 1;
+            
+            if (criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
+                String keyword = "%" + criteria.getKeyword() + "%";
+                stmt.setString(paramIndex++, keyword);
+                stmt.setString(paramIndex++, keyword);
+                stmt.setString(paramIndex++, keyword);
+                stmt.setString(paramIndex++, keyword);
+            }
+            
+            if (criteria.getStatus() != null && !criteria.getStatus().isEmpty()) {
+                stmt.setString(paramIndex++, criteria.getStatus());
+            }
+            
+            if (criteria.getRole() != null && !criteria.getRole().isEmpty()) {
+                stmt.setString(paramIndex, criteria.getRole());
+            }
+            
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            logger.error("Error counting activity logs by criteria", e);
+        }
+        return 0;
     }
 }

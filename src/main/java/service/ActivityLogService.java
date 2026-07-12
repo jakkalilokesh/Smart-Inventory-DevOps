@@ -85,4 +85,12 @@ public interface ActivityLogService {
      * @return number of logs deleted
      */
     int cleanupOldLogs(int daysToKeep);
+
+    /**
+     * Retrieves activity logs with pagination and search criteria.
+     * 
+     * @param criteria the search criteria
+     * @return pagination DTO of activity logs
+     */
+    com.smartinventory.dto.PaginationDTO<ActivityLog> findWithPagination(com.smartinventory.dto.SearchCriteria criteria);
 }

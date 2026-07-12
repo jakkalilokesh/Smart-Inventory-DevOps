@@ -16,7 +16,7 @@ import java.io.IOException;
  * Filter for authorization based on user roles.
  * Restricts access to admin-only routes.
  */
-@WebFilter(urlPatterns = {"/users/*", "/reports/*"})
+@WebFilter(urlPatterns = {"/users/*", "/reports/*", "/audit-logs/*"})
 public class AuthorizationFilter implements Filter {
     private static final Logger logger = LogManager.getLogger(AuthorizationFilter.class);
 
@@ -49,7 +49,7 @@ public class AuthorizationFilter implements Filter {
         // Check if user has required role
         String path = httpRequest.getRequestURI();
         
-        if (path.contains("/users/") && !AppConstants.ROLE_ADMIN.equals(user.getRoleName())) {
+        if ((path.contains("/users/") || path.contains("/audit-logs/")) && !AppConstants.ROLE_ADMIN.equals(user.getRoleName())) {
             logger.warn("Unauthorized access attempt by user: {} to: {}", user.getUsername(), path);
             httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied. Admin role required.");
             return;

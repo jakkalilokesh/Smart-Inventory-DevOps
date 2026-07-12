@@ -1,82 +1,18 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - SmartInventory</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <div class="dashboard-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>SmartInventory</h2>
-            </div>
-            <ul class="sidebar-nav">
-                <li>
-                    <a href="${pageContext.request.contextPath}/dashboard" class="active">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/categories/">
-                        <i class="fas fa-folder"></i> Categories
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/products/">
-                        <i class="fas fa-box"></i> Products
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/suppliers/">
-                        <i class="fas fa-truck"></i> Suppliers
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/inventory/">
-                        <i class="fas fa-warehouse"></i> Inventory
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/reports/dashboard">
-                        <i class="fas fa-chart-bar"></i> Reports
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/profile/">
-                        <i class="fas fa-user"></i> Profile
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/auth/logout">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </li>
-            </ul>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="top-nav">
-                <div class="top-nav-left">
-                    <h3>Dashboard</h3>
-                </div>
-                <div class="top-nav-right">
-                    <div class="user-info">
-                        <div class="user-avatar">${user.firstName.charAt(0)}${user.lastName.charAt(0)}</div>
-                        <div>
-                            <strong>${user.firstName} ${user.lastName}</strong><br>
-                            <small>${user.roleName}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<jsp:include page="/WEB-INF/views/fragments/header.jsp">
+    <jsp:param name="title" value="Dashboard - SmartInventory" />
+</jsp:include>
+
+<jsp:include page="/WEB-INF/views/fragments/sidebar.jsp">
+    <jsp:param name="activeTab" value="dashboard" />
+</jsp:include>
+
+<main class="main-content">
+    <jsp:include page="/WEB-INF/views/fragments/topbar.jsp">
+        <jsp:param name="pageTitle" value="Dashboard" />
+    </jsp:include>
             
             <c:if test="${not empty requestScope.error}">
                 <div class="alert alert-danger">
@@ -138,7 +74,7 @@
                 <div class="card-header">
                     <h4>Inventory Value</h4>
                 </div>
-                <div class="stats-grid">
+                <div class="stats-grid" style="margin-bottom: 0;">
                     <div class="stat-card">
                         <div class="stat-icon primary">
                             <i class="fas fa-dollar-sign"></i>
@@ -157,6 +93,26 @@
                             <h5>Potential Profit</h5>
                             <h3><fmt:formatNumber value="${dashboard.totalPotentialProfit}" type="currency"/></h3>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-bottom: 1.5rem;">
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header">
+                        <h4>Stock Status Overview</h4>
+                    </div>
+                    <div style="position: relative; height: 260px; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+                        <canvas id="stockStatusChart"></canvas>
+                    </div>
+                </div>
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header">
+                        <h4>System Entities Summary</h4>
+                    </div>
+                    <div style="position: relative; height: 260px; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+                        <canvas id="entitiesChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -224,7 +180,8 @@
                                         <td>${activity.module}</td>
                                         <td>${activity.description}</td>
                                         <td>
-                                            <fmt:formatDate value="${activity.createdAt}" pattern="MMM dd, yyyy HH:mm"/>
+                                            <fmt:parseDate value="${activity.createdAt}" pattern="yyyy-MM-dd'T'HH:mm" var="parsedDateTime" type="both" />
+                                            <fmt:formatDate value="${parsedDateTime}" pattern="MMM dd, yyyy HH:mm" />
                                         </td>
                                     </tr>
                                 </c:forEach>
@@ -233,9 +190,102 @@
                     </div>
                 </div>
             </c:if>
-        </main>
-    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Stock Status Chart (Doughnut)
+            const stockCtx = document.getElementById('stockStatusChart').getContext('2d');
+            const totalProducts = ${dashboard.totalProducts};
+            const lowStock = ${dashboard.lowStockProducts};
+            const healthyStock = Math.max(0, totalProducts - lowStock);
     
-    <script src="${pageContext.request.contextPath}/js/app.js"></script>
-</body>
-</html>
+            new Chart(stockCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Healthy Stock', 'Low Stock'],
+                    datasets: [{
+                        data: [healthyStock, lowStock],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.6)',
+                            'rgba(244, 63, 94, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(244, 63, 94, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Plus Jakarta Sans',
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+    
+            // Entities Summary Chart (Bar)
+            const entitiesCtx = document.getElementById('entitiesChart').getContext('2d');
+            new Chart(entitiesCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Products', 'Categories', 'Suppliers'],
+                    datasets: [{
+                        label: 'Total Registered',
+                        data: [${dashboard.totalProducts}, ${dashboard.totalCategories}, ${dashboard.totalSuppliers}],
+                        backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Plus Jakarta Sans'
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Plus Jakarta Sans'
+                                },
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</main>
+<jsp:include page="/WEB-INF/views/fragments/footer.jsp" />

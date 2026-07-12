@@ -2,6 +2,8 @@ package com.smartinventory.service.impl;
 
 import com.smartinventory.dao.ActivityLogDAO;
 import com.smartinventory.dao.impl.ActivityLogDAOImpl;
+import com.smartinventory.dto.PaginationDTO;
+import com.smartinventory.dto.SearchCriteria;
 import com.smartinventory.model.ActivityLog;
 import com.smartinventory.service.ActivityLogService;
 import org.apache.logging.log4j.LogManager;
@@ -113,5 +115,10 @@ public class ActivityLogServiceImpl implements ActivityLogService {
      */
     public String getUserAgent(HttpServletRequest request) {
         return request.getHeader("User-Agent");
+    }
+
+    @Override
+    public PaginationDTO<ActivityLog> findWithPagination(SearchCriteria criteria) {
+        return activityLogDAO.findWithPagination(criteria);
     }
 }

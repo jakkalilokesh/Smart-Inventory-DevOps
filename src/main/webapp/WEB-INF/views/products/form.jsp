@@ -1,47 +1,27 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${empty product ? 'Add' : 'Edit'} Product - SmartInventory</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <div class="dashboard-container">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>SmartInventory</h2>
-            </div>
-            <ul class="sidebar-nav">
-                <li><a href="${pageContext.request.contextPath}/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-                <li><a href="${pageContext.request.contextPath}/categories/"><i class="fas fa-folder"></i> Categories</a></li>
-                <li><a href="${pageContext.request.contextPath}/products/" class="active"><i class="fas fa-box"></i> Products</a></li>
-                <li><a href="${pageContext.request.contextPath}/suppliers/"><i class="fas fa-truck"></i> Suppliers</a></li>
-                <li><a href="${pageContext.request.contextPath}/inventory/"><i class="fas fa-warehouse"></i> Inventory</a></li>
-                <li><a href="${pageContext.request.contextPath}/reports/dashboard"><i class="fas fa-chart-bar"></i> Reports</a></li>
-                <li><a href="${pageContext.request.contextPath}/profile/"><i class="fas fa-user"></i> Profile</a></li>
-                <li><a href="${pageContext.request.contextPath}/auth/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-            </ul>
-        </aside>
-        
-        <main class="main-content">
-            <div class="top-nav">
-                <div class="top-nav-left">
-                    <h3>${empty product ? 'Add' : 'Edit'} Product</h3>
-                </div>
-                <div class="top-nav-right">
-                    <a href="${pageContext.request.contextPath}/products/" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                </div>
-            </div>
+<jsp:include page="/WEB-INF/views/fragments/header.jsp">
+    <jsp:param name="title" value="${empty product ? 'Add' : 'Edit'} Product - SmartInventory" />
+</jsp:include>
+
+<jsp:include page="/WEB-INF/views/fragments/sidebar.jsp">
+    <jsp:param name="activeTab" value="products" />
+</jsp:include>
+
+<main class="main-content">
+    <jsp:include page="/WEB-INF/views/fragments/topbar.jsp">
+        <jsp:param name="pageTitle" value="${empty product ? 'Add' : 'Edit'} Product" />
+    </jsp:include>
             
             <c:if test="${not empty requestScope.error}">
                 <div class="alert alert-danger">${requestScope.error}</div>
             </c:if>
+            
+            <div style="display: flex; justify-content: flex-start; margin-bottom: 1.25rem;">
+                <a href="${pageContext.request.contextPath}/products/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Products
+                </a>
+            </div>
             
             <div class="card">
                 <form action="${pageContext.request.contextPath}/products/${empty product ? 'create' : 'update/' + product.productId}" method="post" data-validate>
@@ -149,9 +129,5 @@
                     </div>
                 </form>
             </div>
-        </main>
-    </div>
-    
-    <script src="${pageContext.request.contextPath}/js/app.js"></script>
-</body>
-</html>
+</main>
+<jsp:include page="/WEB-INF/views/fragments/footer.jsp" />

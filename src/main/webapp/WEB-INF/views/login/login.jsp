@@ -1,4 +1,5 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,11 +42,11 @@
                 <button type="submit" class="login-btn">Login</button>
             </form>
             
-            <div style="text-align: center; margin-top: 1rem; color: #6c757d; font-size: 0.875rem;">
-                <p>Default credentials:</p>
-                <p>Admin: admin / admin123</p>
-                <p>Manager: manager / manager123</p>
-                <p>Staff: staff / staff123</p>
+            <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+                <p style="color: var(--text-muted); margin-bottom: 0.75rem;">Default credentials:</p>
+                <code style="display: block; color: var(--secondary-color); font-size: 0.8rem; margin-bottom: 0.25rem;">admin / admin123 (Admin)</code>
+                <code style="display: block; color: var(--secondary-color); font-size: 0.8rem; margin-bottom: 1.25rem;">staff / staff123 (Staff)</code>
+                <p style="color: var(--text-muted);">Don't have an account? <a href="${pageContext.request.contextPath}/auth/register" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Register here</a></p>
             </div>
         </div>
     </div>

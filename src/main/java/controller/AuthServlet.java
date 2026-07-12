@@ -37,6 +37,9 @@ public class AuthServlet extends HttpServlet {
         if (pathInfo == null || pathInfo.equals("/")) {
             // Show login page
             request.getRequestDispatcher("/WEB-INF/views/login/login.jsp").forward(request, response);
+        } else if (pathInfo.equals("/register")) {
+            // Show register page
+            request.getRequestDispatcher("/WEB-INF/views/login/register.jsp").forward(request, response);
         } else if (pathInfo.equals("/logout")) {
             handleLogout(request, response);
         } else {
@@ -52,8 +55,59 @@ public class AuthServlet extends HttpServlet {
         
         if (pathInfo == null || pathInfo.equals("/login")) {
             handleLogin(request, response);
+        } else if (pathInfo.equals("/register")) {
+            handleRegister(request, response);
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
+    }
+
+    /**
+     * Handles user registration.
+     */
+    private void handleRegister(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        
+        String username = request.getParameter("username");
+        String email = request.getParameter("email");
+        String password = request.getParameter("password");
+        String firstName = request.getParameter("firstName");
+        String lastName = request.getParameter("lastName");
+        String phone = request.getParameter("phone");
+        
+        logger.info("Registration attempt for username: {}, email: {}", username, email);
+        
+        try {
+            // Check if username already exists
+            if (userService.findByUsername(username) != null) {
+                request.setAttribute("error", "Username already exists");
+                request.getRequestDispatcher("/WEB-INF/views/login/register.jsp").forward(request, response);
+                return;
+            }
+            
+            // Create user object
+            User user = new User();
+            user.setUsername(username);
+            user.setPassword(password);
+            user.setEmail(email);
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
+            user.setPhone(phone);
+            user.setRoleId(3); // Default role is STAFF
+            user.setStatus("ACTIVE");
+            
+            User created = userService.create(user);
+            if (created != null) {
+                request.setAttribute("success", "Registration successful! Please login.");
+                request.getRequestDispatcher("/WEB-INF/views/login/login.jsp").forward(request, response);
+            } else {
+                request.setAttribute("error", "Failed to register user. Please try again.");
+                request.getRequestDispatcher("/WEB-INF/views/login/register.jsp").forward(request, response);
+            }
+        } catch (Exception e) {
+            logger.error("Error during registration", e);
+            request.setAttribute("error", "An error occurred: " + e.getMessage());
+            request.getRequestDispatcher("/WEB-INF/views/login/register.jsp").forward(request, response);
         }
     }
 

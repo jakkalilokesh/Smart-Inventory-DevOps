@@ -1,14 +1,19 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports & Data Management - SmartInventory</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<jsp:include page="/WEB-INF/views/fragments/header.jsp">
+    <jsp:param name="title" value="Reports & Data Management - SmartInventory" />
+</jsp:include>
+
+<jsp:include page="/WEB-INF/views/fragments/sidebar.jsp">
+    <jsp:param name="activeTab" value="reports" />
+</jsp:include>
+
+<main class="main-content">
+    <jsp:include page="/WEB-INF/views/fragments/topbar.jsp">
+        <jsp:param name="pageTitle" value="Reports & Data Management" />
+    </jsp:include>
+    
     <style>
         .report-section-grid {
             display: grid;
@@ -17,37 +22,39 @@
             margin-bottom: 30px;
         }
         .report-card {
-            background: #fff;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
             padding: 24px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             transition: all 0.3s ease;
-            border-top: 4px solid #3b82f6;
+            border-top: 4px solid var(--primary-color);
         }
         .report-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow-lg);
         }
-        .report-card.valuation { border-top-color: #10b981; }
-        .report-card.transactions { border-top-color: #f59e0b; }
+        .report-card.valuation { border-top-color: var(--success-color); }
+        .report-card.transactions { border-top-color: var(--warning-color); }
         .report-card.imports { border-top-color: #8b5cf6; }
         .report-card h4 {
             margin: 0 0 12px 0;
-            color: #1f2937;
+            color: var(--text-primary);
             font-size: 1.2rem;
             font-weight: 600;
         }
         .report-card p {
             margin: 0 0 20px 0;
-            color: #6b7280;
+            color: var(--text-muted);
             font-size: 0.9rem;
             line-height: 1.5;
         }
         .report-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
         }
         .btn-export {
@@ -75,10 +82,10 @@
         }
         .btn-excel:hover { background-color: #059669; }
         .btn-csv {
-            background-color: #3b82f6;
+            background-color: var(--primary-color);
             color: white;
         }
-        .btn-csv:hover { background-color: #2563eb; }
+        .btn-csv:hover { opacity: 0.9; }
         .btn-json {
             background-color: #4b5563;
             color: white;
@@ -86,8 +93,8 @@
         .btn-json:hover { background-color: #374151; }
         
         .import-box {
-            background: #f9fafb;
-            border: 2px dashed #d1d5db;
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px dashed var(--border-color);
             border-radius: 8px;
             padding: 20px;
             text-align: center;
@@ -98,24 +105,24 @@
         }
         .import-label {
             display: inline-block;
-            background: #fff;
-            border: 1px solid #d1d5db;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: 500;
-            color: #374151;
+            color: var(--text-primary);
             margin-bottom: 10px;
         }
         .import-label:hover {
-            background: #f3f4f6;
+            background: rgba(255, 255, 255, 0.05);
         }
         .template-links {
             margin-top: 10px;
             font-size: 0.8rem;
         }
         .template-links a {
-            color: #3b82f6;
+            color: var(--primary-color);
             text-decoration: none;
             margin: 0 5px;
         }
@@ -123,74 +130,6 @@
             text-decoration: underline;
         }
     </style>
-</head>
-<body>
-    <div class="dashboard-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>SmartInventory</h2>
-            </div>
-            <ul class="sidebar-nav">
-                <li>
-                    <a href="${pageContext.request.contextPath}/dashboard">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/categories/">
-                        <i class="fas fa-folder"></i> Categories
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/products/">
-                        <i class="fas fa-box"></i> Products
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/suppliers/">
-                        <i class="fas fa-truck"></i> Suppliers
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/inventory/">
-                        <i class="fas fa-warehouse"></i> Inventory
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/reports/dashboard" class="active">
-                        <i class="fas fa-chart-bar"></i> Reports
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/profile/">
-                        <i class="fas fa-user"></i> Profile
-                    </a>
-                </li>
-                <li>
-                    <a href="${pageContext.request.contextPath}/auth/logout">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </li>
-            </ul>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="top-nav">
-                <div class="top-nav-left">
-                    <h3>Reports & Data Management</h3>
-                </div>
-                <div class="top-nav-right">
-                    <div class="user-info">
-                        <div class="user-avatar">${user.firstName.charAt(0)}${user.lastName.charAt(0)}</div>
-                        <div>
-                            <strong>${user.firstName} ${user.lastName}</strong><br>
-                            <small>${user.roleName}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
             
             <c:if test="${not empty requestScope.error}">
                 <div class="alert alert-danger">
@@ -334,14 +273,35 @@
                 </div>
             </div>
 
+            <!-- Interactive Charts Section -->
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--text-primary);">Visual Analytics</h3>
+            <div class="report-section-grid" style="margin-bottom: 2rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Category Distribution (Products)</h4>
+                    </div>
+                    <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                        <canvas id="categoryDistChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Stock Value by Category</h4>
+                    </div>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="categoryValChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <!-- Export Other Modules -->
             <div class="card">
                 <div class="card-header">
                     <h4>Suppliers & Categories Data Export</h4>
                 </div>
-                <div style="display: flex; gap: 20px; padding: 15px 0;">
-                    <div style="flex: 1; background: #f9fafb; padding: 15px; border-radius: 8px;">
-                        <h5 style="margin-top: 0;">Suppliers Data</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; padding: 15px 0;">
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px;">
+                        <h5 style="margin-top: 0; color: var(--text-primary); margin-bottom: 12px;">Suppliers Data</h5>
                         <div class="report-actions">
                             <a href="${pageContext.request.contextPath}/reports/export?module=suppliers&format=csv" class="btn-export btn-csv">
                                 <i class="fas fa-file-csv"></i> CSV
@@ -351,8 +311,8 @@
                             </a>
                         </div>
                     </div>
-                    <div style="flex: 1; background: #f9fafb; padding: 15px; border-radius: 8px;">
-                        <h5 style="margin-top: 0;">Categories Data</h5>
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px;">
+                        <h5 style="margin-top: 0; color: var(--text-primary); margin-bottom: 12px;">Categories Data</h5>
                         <div class="report-actions">
                             <a href="${pageContext.request.contextPath}/reports/export?module=categories&format=csv" class="btn-export btn-csv">
                                 <i class="fas fa-file-csv"></i> CSV
@@ -364,14 +324,119 @@
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
-    
-    <script>
-        document.getElementById('file').addEventListener('change', function(e) {
-            var fileName = e.target.files[0] ? e.target.files[0].name : "No file selected";
-            document.getElementById('file-name-display').textContent = fileName;
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // file selection display listener
+        const fileInput = document.getElementById('file');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                var fileName = e.target.files[0] ? e.target.files[0].name : "No file selected";
+                document.getElementById('file-name-display').textContent = fileName;
+            });
+        }
+
+        // Category Distribution Chart
+        const distCtx = document.getElementById('categoryDistChart').getContext('2d');
+        const distLabels = [];
+        const distData = [];
+        
+        <c:forEach items="${inventorySummary.categoryDistribution}" var="entry">
+            distLabels.push("${entry.key}");
+            distData.push(${entry.value});
+        </c:forEach>
+        
+        new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: distLabels,
+                datasets: [{
+                    data: distData,
+                    backgroundColor: [
+                        'rgba(99, 102, 241, 0.7)',  // Indigo
+                        'rgba(168, 85, 247, 0.7)',  // Purple
+                        'rgba(236, 72, 153, 0.7)',  // Pink
+                        'rgba(244, 63, 94, 0.7)',   // Rose
+                        'rgba(34, 197, 94, 0.7)',   // Green
+                        'rgba(59, 130, 246, 0.7)',  // Blue
+                        'rgba(234, 179, 8, 0.7)'    // Yellow
+                    ],
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#94a3b8',
+                            font: {
+                                family: "'Plus Jakarta Sans', sans-serif",
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
         });
-    </script>
-</body>
-</html>
+
+        // Category Values Chart
+        const valCtx = document.getElementById('categoryValChart').getContext('2d');
+        const valLabels = [];
+        const valData = [];
+        
+        <c:forEach items="${inventorySummary.categoryValues}" var="entry">
+            valLabels.push("${entry.key}");
+            valData.push(${entry.value});
+        </c:forEach>
+        
+        new Chart(valCtx, {
+            type: 'bar',
+            data: {
+                labels: valLabels,
+                datasets: [{
+                    label: 'Inventory Value ($)',
+                    data: valData,
+                    backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
+                        ticks: {
+                            color: '#94a3b8'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
+                        ticks: {
+                            color: '#94a3b8'
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<jsp:include page="/WEB-INF/views/fragments/footer.jsp" />
