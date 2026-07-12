@@ -187,8 +187,11 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
+        # Convert repository name to lowercase for Kubernetes compatibility
+        REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        
         # Replace image tag in k8s/deployment.yaml and values-staging.yaml
-        sed -i "s|image: .*smart-inventory-devops:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|gi" k8s/deployment.yaml
+        sed -i "s|image: .*smart-inventory-devops:.*|image: ghcr.io/${REPO_LOWER}:${{ github.sha }}|gi" k8s/deployment.yaml
         sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/smartinventory/values-staging.yaml
         
         git add k8s/deployment.yaml helm/smartinventory/values-staging.yaml
@@ -214,8 +217,11 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
+        # Convert repository name to lowercase for Kubernetes compatibility
+        REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        
         # Replace image tag in k8s/deployment.yaml and values-prod.yaml
-        sed -i "s|image: .*smart-inventory-devops:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|gi" k8s/deployment.yaml
+        sed -i "s|image: .*smart-inventory-devops:.*|image: ghcr.io/${REPO_LOWER}:${{ github.sha }}|gi" k8s/deployment.yaml
         sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/smartinventory/values-prod.yaml
         
         git add k8s/deployment.yaml helm/smartinventory/values-prod.yaml
