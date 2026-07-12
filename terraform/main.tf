@@ -83,8 +83,8 @@ module "eks" {
       disk_size      = 50
 
       min_size     = 2
-      max_size     = 5
-      desired_size = 3
+      max_size     = 2
+      desired_size = 2
 
       labels = {
         Environment = "production"
