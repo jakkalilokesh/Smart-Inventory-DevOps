@@ -175,7 +175,6 @@ jobs:
     if: github.ref == 'refs/heads/develop'
     environment:
       name: staging
-      url: https://staging.smartinventory.com
       
     steps:
     - name: Checkout code
@@ -201,7 +200,6 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment:
       name: production
-      url: https://smartinventory.com
     env:
       KUBECONFIG: ${{ github.workspace }}/kubeconfig
       
