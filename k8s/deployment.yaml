@@ -130,6 +130,8 @@ spec:
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
+        - name: mysql-initdb
+          mountPath: /docker-entrypoint-initdb.d
         livenessProbe:
           exec:
             command:
@@ -155,3 +157,6 @@ spec:
       volumes:
       - name: mysql-storage
         emptyDir: {}
+      - name: mysql-initdb
+        configMap:
+          name: mysql-init-config

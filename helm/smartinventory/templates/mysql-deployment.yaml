@@ -39,10 +39,15 @@ spec:
         volumeMounts:
         - name: mysql-persistent-storage
           mountPath: /var/lib/mysql
+        - name: mysql-initdb
+          mountPath: /docker-entrypoint-initdb.d
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
           claimName: {{ include "smartinventory.fullname" . }}-mysql-pvc
+      - name: mysql-initdb
+        configMap:
+          name: {{ include "smartinventory.fullname" . }}-mysql-init
 ---
 apiVersion: v1
 kind: Service
