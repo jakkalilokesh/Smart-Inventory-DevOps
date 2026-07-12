@@ -5,6 +5,10 @@ metadata:
   labels:
     app: smartinventory
     tier: backend
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/auth/"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "traffic-port"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "HTTP"
 spec:
   type: LoadBalancer
   ports:
