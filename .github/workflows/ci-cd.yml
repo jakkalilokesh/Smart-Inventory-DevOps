@@ -189,12 +189,11 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
         # Replace image tag in k8s/deployment.yaml and values-staging.yaml
-        sed -i "s|image: .*smartinventory:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" k8s/deployment.yaml
+        sed -i "s|image: .*smart-inventory-devops:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|gi" k8s/deployment.yaml
         sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/smartinventory/values-staging.yaml
         
         git add k8s/deployment.yaml helm/smartinventory/values-staging.yaml
-        git commit -m "chore(gitops): update staging image tag to ${{ github.sha }} [skip ci]"
-        git push origin develop
+        git diff-index --quiet HEAD || (git commit -m "chore(gitops): update staging image tag to ${{ github.sha }} [skip ci]" && git push origin develop)
         
   deploy-production:
     runs-on: ubuntu-latest
@@ -218,12 +217,11 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
         # Replace image tag in k8s/deployment.yaml and values-prod.yaml
-        sed -i "s|image: .*smartinventory:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" k8s/deployment.yaml
+        sed -i "s|image: .*smart-inventory-devops:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|gi" k8s/deployment.yaml
         sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/smartinventory/values-prod.yaml
         
         git add k8s/deployment.yaml helm/smartinventory/values-prod.yaml
-        git commit -m "chore(gitops): update production image tag to ${{ github.sha }} [skip ci]"
-        git push origin main
+        git diff-index --quiet HEAD || (git commit -m "chore(gitops): update production image tag to ${{ github.sha }} [skip ci]" && git push origin main)
         
     - name: Set up kubectl
       uses: azure/setup-kubectl@v4
