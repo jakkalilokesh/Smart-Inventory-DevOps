@@ -154,5 +154,4 @@ spec:
           failureThreshold: 3
       volumes:
       - name: mysql-storage
-        persistentVolumeClaim:
-          claimName: mysql-pvc
+        emptyDir: {}
