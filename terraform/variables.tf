@@ -62,6 +62,7 @@ variable "db_password" {
   description = "Database password"
   type        = string
   sensitive   = true
+  default     = "SmartInventoryDBPass2026"
 }
 
 variable "app_version" {
